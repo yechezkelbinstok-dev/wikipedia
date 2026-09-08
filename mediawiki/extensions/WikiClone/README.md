@@ -225,12 +225,20 @@ and only the rest are worth investigating.
 Measured on the 2 vCPU host, after LuaSandbox and the Scribunto limits were
 sorted out:
 
-| | Cold (first ever view) | Warm (parser cache) |
+| | Cold render | Warm (parser cache) |
 | --- | --- | --- |
 | Internet Engineering Task Force (58 citations) | 4.4s | 0.13s |
-| Golden eagle, templates already present | 3.6s | — |
-| Peregrine falcon, 110 new templates | 12.6s | — |
 | Barack Obama (2.9 MB, 497 citations) | 24.4s | 0.17s |
+
+Cold cost tracks how much of the template tree is already present, which is
+why warming a topic converges so sharply — importing and rendering three
+articles from one category, in order:
+
+| | New templates | Import | Render |
+| --- | --- | --- | --- |
+| Falcon | 8 | 4.4s | 1.1s |
+| Barred forest falcon | 3 | 1.3s | 0.6s |
+| Falcon adenovirus 1 | 11 | 1.2s | 0.3s |
 
 The cold cost is paid once per article, ever. What makes browsing feel fast is
 that the second view of anything is a sixth of a second, so the lever that
