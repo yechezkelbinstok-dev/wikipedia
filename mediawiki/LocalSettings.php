@@ -137,9 +137,12 @@ wfLoadExtension( 'ReplaceText' );
 // that checks its own protection level throws.
 wfLoadExtension( 'TitleBlacklist' );
 
-// Provides {{SHORTDESC:}}. Absent, the magic word is parsed as a transclusion
-// and renders as a red link to "Template:SHORTDESC:...".
-wfLoadExtension( 'ShortDescription' );
+// Provides {{SHORTDESC:}}; absent, the magic word is parsed as a transclusion
+// and renders as a red link to "Template:SHORTDESC:...". Cosmetic, and the
+// image may not have been able to fetch it, so load it only if it is here.
+if ( is_file( "$IP/extensions/ShortDescription/extension.json" ) ) {
+	wfLoadExtension( 'ShortDescription' );
+}
 
 // Page Previews on by default, as on Wikipedia.
 $wgPopupsHideOptInOnPreferencesPage = false;

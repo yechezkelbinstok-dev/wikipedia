@@ -21,19 +21,42 @@ RUN set -eux; \
         docker-php-ext-enable apcu; \
     fi
 
-# Not every extension cuts a branch for every MediaWiki release, so fall back
-# to the default branch rather than failing the build.
+# Extensions Wikipedia's articles genuinely need. A failure here should fail
+# the build.
 RUN set -eux; \
     cd /var/www/html/extensions; \
-    for ext in MobileFrontend TemplateStyles Popups ShortDescription; do \
+    for ext in MobileFrontend TemplateStyles Popups; do \
         if [ ! -d "$ext" ]; then \
-            url="https://github.com/wikimedia/mediawiki-extensions-$ext.git"; \
-            git clone --depth 1 -b "$MW_BRANCH" "$url" "$ext" \
-                || git clone --depth 1 "$url" "$ext"; \
+            git clone --depth 1 -b "$MW_BRANCH" \
+                "https://github.com/wikimedia/mediawiki-extensions-$ext.git" "$ext"; \
         fi; \
     done; \
     cd /var/www/html/skins; \
     if [ ! -d MinervaNeue ]; then \
         git clone --depth 1 -b "$MW_BRANCH" \
             https://github.com/wikimedia/mediawiki-skins-MinervaNeue.git MinervaNeue; \
+    fi
+
+# ShortDescription only affects one cosmetic red link, and unlike the others
+# it has no GitHub mirror at all — only Gerrit, and only a master branch, with
+# no per-release branches. So it must not be able to fail the build: try Gerrit
+# then GitHub, release branch then default, and carry on without it if none
+# work. LocalSettings.php loads it only if it actually landed.
+ENV GIT_TERMINAL_PROMPT=0
+RUN set -eu; \
+    cd /var/www/html/extensions; \
+    for url in \
+        "https://gerrit.wikimedia.org/r/mediawiki/extensions/ShortDescription" \
+        "https://github.com/wikimedia/mediawiki-extensions-ShortDescription.git" \
+    ; do \
+        rm -rf ShortDescription; \
+        git clone --depth 1 -b "$MW_BRANCH" "$url" ShortDescription 2>/dev/null && break; \
+        rm -rf ShortDescription; \
+        git clone --depth 1 "$url" ShortDescription 2>/dev/null && break; \
+    done; \
+    if [ -f ShortDescription/extension.json ]; then \
+        echo "ShortDescription: installed"; \
+    else \
+        rm -rf ShortDescription; \
+        echo "ShortDescription: unavailable, continuing without it"; \
     fi
