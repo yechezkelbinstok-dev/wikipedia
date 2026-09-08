@@ -28,11 +28,15 @@ RUN set -eux; \
 # version, and this is an optimisation rather than a requirement, so a failure
 # must not fail the build — LocalSettings.php picks the engine by what actually
 # loaded.
+# liblua5.1-0 is what luasandbox.so links against at runtime, and is installed
+# separately from the -dev package on purpose: the build-time purge below
+# removes orphaned dependencies, and taking the runtime library with them is
+# what left the extension present on disk but unloadable.
 RUN set -eu; \
-    savedAptMark="$(apt-mark showmanual)"; \
-    if apt-get update && apt-get install -y --no-install-recommends \
-            $PHPIZE_DEPS liblua5.1-0-dev \
-        && pecl install luasandbox \
+    apt-get update; \
+    apt-get install -y --no-install-recommends liblua5.1-0; \
+    apt-get install -y --no-install-recommends $PHPIZE_DEPS liblua5.1-0-dev; \
+    if pecl install luasandbox \
         && docker-php-ext-enable luasandbox \
         && php -r 'exit(extension_loaded("luasandbox") ? 0 : 1);'; then \
         echo "luasandbox: installed"; \
@@ -40,9 +44,10 @@ RUN set -eu; \
         echo "luasandbox: unavailable, falling back to the standalone engine"; \
         rm -f /usr/local/etc/php/conf.d/docker-php-ext-luasandbox.ini; \
     fi; \
-    apt-mark auto '.*' > /dev/null; \
-    [ -z "$savedAptMark" ] || apt-mark manual $savedAptMark > /dev/null; \
-    apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false $PHPIZE_DEPS; \
+    apt-get purge -y --auto-remove $PHPIZE_DEPS liblua5.1-0-dev; \
+    php -r 'exit(extension_loaded("luasandbox") ? 0 : 1);' \
+        && echo "luasandbox: still loadable after cleanup" \
+        || echo "luasandbox: LOST during cleanup"; \
     rm -rf /var/lib/apt/lists/*
 
 # Extensions Wikipedia's articles genuinely need. A failure here should fail
