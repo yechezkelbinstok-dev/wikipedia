@@ -21,12 +21,15 @@ RUN set -eux; \
         docker-php-ext-enable apcu; \
     fi
 
+# Not every extension cuts a branch for every MediaWiki release, so fall back
+# to the default branch rather than failing the build.
 RUN set -eux; \
     cd /var/www/html/extensions; \
-    for ext in MobileFrontend TemplateStyles Popups; do \
+    for ext in MobileFrontend TemplateStyles Popups ShortDescription; do \
         if [ ! -d "$ext" ]; then \
-            git clone --depth 1 -b "$MW_BRANCH" \
-                "https://github.com/wikimedia/mediawiki-extensions-$ext.git" "$ext"; \
+            url="https://github.com/wikimedia/mediawiki-extensions-$ext.git"; \
+            git clone --depth 1 -b "$MW_BRANCH" "$url" "$ext" \
+                || git clone --depth 1 "$url" "$ext"; \
         fi; \
     done; \
     cd /var/www/html/skins; \

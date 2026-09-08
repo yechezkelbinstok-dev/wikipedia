@@ -16,6 +16,14 @@ git pull --ff-only
 echo "==> Building"
 docker compose up -d --build
 
+# A restart kills anything running inside the container, including a title
+# import started with `docker compose exec`. Check before pulling the rug.
+if docker compose exec -T mediawiki pgrep -f 'importTitles.php' >/dev/null 2>&1; then
+	echo "A title import is running inside the container; restarting would kill it." >&2
+	echo "Wait for it to finish, then re-run this script." >&2
+	exit 1
+fi
+
 echo "==> Restarting MediaWiki so it picks up the new code"
 docker compose restart mediawiki
 

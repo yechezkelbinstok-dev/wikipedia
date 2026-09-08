@@ -184,3 +184,12 @@ Absent, MediaWiki silently falls back to its own defaults:
 pages from their maintenance templates. Indexing main space alone leaves those
 red on an otherwise perfect article, so the index covers main, Wikipedia,
 Template, Help, Category, Portal and Module.
+
+## Scribunto's own budget
+
+Scribunto enforces a CPU limit separate from PHP's `max_execution_time`, and
+its 7-second default is Wikimedia's — set for Wikimedia's hardware. On a shared
+2-vCPU host a long article's module tree runs past it, the standalone Lua
+interpreter is killed with `SIGXCPU`, and every module call after that point on
+the page fails. One import came back with 538 Lua errors, all from a single
+timeout. `$wgScribuntoEngineConf['luastandalone']['cpuLimit']` is raised to 60.

@@ -108,6 +108,13 @@ $wgPFEnableStringFunctions = true;
 wfLoadExtension( 'Scribunto' );
 $wgScribuntoDefaultEngine = 'luastandalone';
 
+// Scribunto keeps its own CPU budget, separate from PHP's max_execution_time.
+// The 7-second default is Wikimedia's, set for Wikimedia's hardware; on a
+// shared 2-vCPU VPS a long article's module tree blows through it, the
+// interpreter is killed with SIGXCPU, and every later module call on the page
+// fails — one article came back with 538 Lua errors from a single timeout.
+$wgScribuntoEngineConf['luastandalone']['cpuLimit'] = 60;
+
 wfLoadExtension( 'Cite' );
 wfLoadExtension( 'CiteThisPage' );
 wfLoadExtension( 'TemplateStyles' );
@@ -125,6 +132,14 @@ wfLoadExtension( 'Gadgets' );
 wfLoadExtension( 'Interwiki' );
 wfLoadExtension( 'Nuke' );
 wfLoadExtension( 'ReplaceText' );
+
+// Module:Effective protection level calls into this; without it, every page
+// that checks its own protection level throws.
+wfLoadExtension( 'TitleBlacklist' );
+
+// Provides {{SHORTDESC:}}. Absent, the magic word is parsed as a transclusion
+// and renders as a red link to "Template:SHORTDESC:...".
+wfLoadExtension( 'ShortDescription' );
 
 // Page Previews on by default, as on Wikipedia.
 $wgPopupsHideOptInOnPreferencesPage = false;
@@ -205,7 +220,7 @@ wfLoadExtension( 'WikiClone' );
 // Wikipedia: and Help: pages are linked from article maintenance templates and
 // from the sidebar; leaving them out is what makes "Wikipedia:Verifiability"
 // render red on an otherwise perfect article.
-$wgWikiCloneImportNamespaces = [ NS_MAIN, NS_PROJECT, NS_HELP, NS_PORTAL ];
+$wgWikiCloneImportNamespaces = [ NS_MAIN, NS_TALK, NS_PROJECT, NS_HELP, NS_PORTAL ];
 
 // ------------------------------------------------------------------- debug ---
 // Turn these off once the build settles.

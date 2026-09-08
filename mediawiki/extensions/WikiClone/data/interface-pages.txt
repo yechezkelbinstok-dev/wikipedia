@@ -1,0 +1,42 @@
+# Interface pages that carry English Wikipedia's presentation.
+#
+# MediaWiki falls back to its own defaults for any of these that is absent,
+# which is why a fresh install says "Page / Discussion" where Wikipedia says
+# "Article / Talk", and why the site-wide stylesheet Wikipedia relies on is
+# simply missing.
+#
+# Lines starting with # are ignored.
+
+# Site-wide stylesheets. Common.css is the big one: a great deal of
+# Wikipedia's look lives here rather than in the skin.
+MediaWiki:Common.css
+MediaWiki:Print.css
+MediaWiki:Vector.css
+MediaWiki:Vector-2022.css
+MediaWiki:Mobile.css
+MediaWiki:Minerva.css
+
+# Tab labels: "Article" and "Talk", not "Page" and "Discussion".
+MediaWiki:Nstab-main
+MediaWiki:Nstab-user
+MediaWiki:Nstab-project
+MediaWiki:Nstab-template
+MediaWiki:Nstab-category
+MediaWiki:Talk
+
+# "From Wikipedia, the free encyclopedia"
+MediaWiki:Tagline
+
+# The left-hand navigation
+MediaWiki:Sidebar
+
+# "(Top)" rather than "Beginning" at the head of the contents list
+MediaWiki:Vector-toc-beginning
+
+# Footer
+MediaWiki:Copyright
+MediaWiki:Lastmodifiedat
+MediaWiki:Aboutsite
+MediaWiki:Aboutpage
+MediaWiki:Disclaimers
+MediaWiki:Disclaimerpage

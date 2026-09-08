@@ -102,8 +102,8 @@ class ImportPages extends Maintenance {
 			}
 		}
 
-		for ( $i = 0; $i < $this->getArgCount(); $i++ ) {
-			$titles[] = $this->getArg( $i );
+		foreach ( $this->getArgs() as $arg ) {
+			$titles[] = $arg;
 		}
 
 		return $titles;
