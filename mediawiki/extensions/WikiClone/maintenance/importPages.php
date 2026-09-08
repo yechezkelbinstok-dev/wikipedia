@@ -69,8 +69,16 @@ class ImportPages extends Maintenance {
 			$status = $importer->import( $title );
 			$elapsed = round( microtime( true ) - $start, 1 );
 
+			$stats = $status->getValue();
+			$detail = is_array( $stats )
+				? sprintf(
+					' — %d deps, %ss fetching, %ss saving',
+					$stats['dependencies'], $stats['api'], $stats['save']
+				)
+				: '';
+
 			if ( $status->isGood() ) {
-				$this->output( "  imported {$title->getPrefixedText()} ({$elapsed}s)\n" );
+				$this->output( "  imported {$title->getPrefixedText()} ({$elapsed}s{$detail})\n" );
 				$imported++;
 			} else {
 				$this->output( "  PROBLEM {$title->getPrefixedText()} ({$elapsed}s): "

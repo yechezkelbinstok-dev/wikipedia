@@ -21,6 +21,30 @@ RUN set -eux; \
         docker-php-ext-enable apcu; \
     fi
 
+# Scribunto's default engine spawns a separate `lua` process per parse and
+# talks to it over pipes. LuaSandbox runs Lua in-process instead, which is what
+# Wikimedia runs and is markedly faster on the module-heavy articles that
+# dominate the cost here. Compilation can fail against a given PHP or Lua
+# version, and this is an optimisation rather than a requirement, so a failure
+# must not fail the build — LocalSettings.php picks the engine by what actually
+# loaded.
+RUN set -eu; \
+    savedAptMark="$(apt-mark showmanual)"; \
+    if apt-get update && apt-get install -y --no-install-recommends \
+            $PHPIZE_DEPS liblua5.1-0-dev \
+        && pecl install luasandbox \
+        && docker-php-ext-enable luasandbox \
+        && php -r 'exit(extension_loaded("luasandbox") ? 0 : 1);'; then \
+        echo "luasandbox: installed"; \
+    else \
+        echo "luasandbox: unavailable, falling back to the standalone engine"; \
+        rm -f /usr/local/etc/php/conf.d/docker-php-ext-luasandbox.ini; \
+    fi; \
+    apt-mark auto '.*' > /dev/null; \
+    [ -z "$savedAptMark" ] || apt-mark manual $savedAptMark > /dev/null; \
+    apt-get purge -y --auto-remove -o APT::AutoRemove::RecommendsImportant=false $PHPIZE_DEPS; \
+    rm -rf /var/lib/apt/lists/*
+
 # Extensions Wikipedia's articles genuinely need. A failure here should fail
 # the build.
 RUN set -eux; \

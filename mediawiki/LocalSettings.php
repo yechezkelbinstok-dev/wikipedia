@@ -106,7 +106,11 @@ wfLoadExtension( 'ParserFunctions' );
 $wgPFEnableStringFunctions = true;
 
 wfLoadExtension( 'Scribunto' );
-$wgScribuntoDefaultEngine = 'luastandalone';
+
+// LuaSandbox runs Lua in-process; the standalone engine spawns a process per
+// parse and talks to it over pipes. The image installs LuaSandbox when it can
+// compile, so pick whichever is actually present.
+$wgScribuntoDefaultEngine = extension_loaded( 'luasandbox' ) ? 'luasandbox' : 'luastandalone';
 
 // Scribunto keeps its own CPU budget, separate from PHP's max_execution_time.
 // The 7-second default is Wikimedia's, set for Wikimedia's hardware; on a
@@ -114,6 +118,8 @@ $wgScribuntoDefaultEngine = 'luastandalone';
 // interpreter is killed with SIGXCPU, and every later module call on the page
 // fails — one article came back with 538 Lua errors from a single timeout.
 $wgScribuntoEngineConf['luastandalone']['cpuLimit'] = 60;
+$wgScribuntoEngineConf['luasandbox']['cpuLimit'] = 60;
+$wgScribuntoEngineConf['luasandbox']['memoryLimit'] = 100 * 1024 * 1024;
 
 wfLoadExtension( 'Cite' );
 wfLoadExtension( 'CiteThisPage' );

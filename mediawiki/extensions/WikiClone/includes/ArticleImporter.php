@@ -2,6 +2,7 @@
 
 namespace MediaWiki\Extension\WikiClone;
 
+use MediaWiki\Cache\LinkBatchFactory;
 use MediaWiki\CommentStore\CommentStoreComment;
 use MediaWiki\Content\IContentHandlerFactory;
 use MediaWiki\Page\WikiPageFactory;
@@ -31,6 +32,7 @@ class ArticleImporter {
 	private TitleFactory $titleFactory;
 	private PageStateStore $pageState;
 	private IContentHandlerFactory $contentHandlerFactory;
+	private LinkBatchFactory $linkBatchFactory;
 	private int $maxDependencies;
 
 	public function __construct(
@@ -39,6 +41,7 @@ class ArticleImporter {
 		TitleFactory $titleFactory,
 		PageStateStore $pageState,
 		IContentHandlerFactory $contentHandlerFactory,
+		LinkBatchFactory $linkBatchFactory,
 		int $maxDependencies
 	) {
 		$this->api = $api;
@@ -46,6 +49,7 @@ class ArticleImporter {
 		$this->titleFactory = $titleFactory;
 		$this->pageState = $pageState;
 		$this->contentHandlerFactory = $contentHandlerFactory;
+		$this->linkBatchFactory = $linkBatchFactory;
 		$this->maxDependencies = $maxDependencies;
 	}
 
@@ -66,17 +70,30 @@ class ArticleImporter {
 			}
 
 			$status = StatusValue::newGood();
+			$stats = [ 'dependencies' => 0, 'api' => 0.0, 'save' => 0.0 ];
 
+			$mark = microtime( true );
 			$dependencies = $this->missingDependencies( $prefixed );
+			$stats['dependencies'] = count( $dependencies );
+
 			if ( $dependencies ) {
-				$status->merge( $this->saveMany(
-					$this->api->getWikitext( $dependencies ),
-					$user,
-					PageStateStore::KIND_DEPENDENCY
-				) );
+				$pages = $this->api->getWikitext( $dependencies );
+				$stats['api'] += microtime( true ) - $mark;
+
+				$mark = microtime( true );
+				$status->merge( $this->saveMany( $pages, $user, PageStateStore::KIND_DEPENDENCY ) );
+				$stats['save'] += microtime( true ) - $mark;
+			} else {
+				$stats['api'] += microtime( true ) - $mark;
 			}
 
+			$mark = microtime( true );
 			$status->merge( $this->saveMany( $articles, $user, PageStateStore::KIND_ARTICLE ) );
+			$stats['save'] += microtime( true ) - $mark;
+
+			$stats['api'] = round( $stats['api'], 1 );
+			$stats['save'] = round( $stats['save'], 1 );
+			$status->setResult( $status->isOK(), $stats );
 
 			return $status;
 		} catch ( Throwable $e ) {
@@ -91,14 +108,31 @@ class ArticleImporter {
 	 * @return string[] prefixed titles this wiki does not hold yet
 	 */
 	private function missingDependencies( string $prefixedTitle ): array {
-		$missing = [];
-
+		$candidates = [];
 		foreach ( $this->api->getTransclusions( $prefixedTitle ) as $candidate ) {
-			$dependency = $this->titleFactory->newFromText( $candidate );
-			if ( !$dependency || $dependency->exists() ) {
+			$title = $this->titleFactory->newFromText( $candidate );
+			if ( $title ) {
+				$candidates[] = $title;
+			}
+		}
+
+		if ( !$candidates ) {
+			return [];
+		}
+
+		// Prime the link cache in one query. Asking each of several hundred
+		// titles whether it exists, one at a time, is several hundred queries
+		// before the import has fetched anything at all.
+		$this->linkBatchFactory->newLinkBatch( $candidates )
+			->setCaller( __METHOD__ )
+			->execute();
+
+		$missing = [];
+		foreach ( $candidates as $title ) {
+			if ( $title->exists() ) {
 				continue;
 			}
-			$missing[] = $dependency->getPrefixedText();
+			$missing[] = $title->getPrefixedText();
 			if ( count( $missing ) >= $this->maxDependencies ) {
 				break;
 			}

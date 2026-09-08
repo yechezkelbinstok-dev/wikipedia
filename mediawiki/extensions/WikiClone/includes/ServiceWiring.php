@@ -33,6 +33,7 @@ return [
 			$services->getTitleFactory(),
 			$services->getService( 'WikiClone.PageStateStore' ),
 			$services->getContentHandlerFactory(),
+			$services->getLinkBatchFactory(),
 			$services->getMainConfig()->get( 'WikiCloneMaxDependencies' )
 		);
 	},
