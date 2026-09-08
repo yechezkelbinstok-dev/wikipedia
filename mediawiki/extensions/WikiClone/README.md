@@ -8,10 +8,19 @@ MediaWiki colours a link red when the target page does not exist. On a wiki
 that fetches articles lazily, that means *every* article link is red until
 someone clicks it — the single most obvious sign you are not on Wikipedia.
 
-`wikiclone_title` holds every title that exists upstream: roughly 18 million
-rows of `(namespace, title)`, loaded once from Wikimedia's titles dump. It is
-not the `page` table, and the rows are not pages, so the cost is a few GB
-rather than 18 million revisions.
+`wikiclone_title` holds every title that exists upstream. On English Wikipedia
+that is 22.7M rows of `(namespace, title)`, loaded once from Wikimedia's titles
+dump:
+
+| Namespace | Rows |
+| --- | --- |
+| Main (articles and redirects) | 19,217,771 |
+| Category | 2,635,515 |
+| Template | 899,714 |
+| Module | 19,439 |
+
+It is not the `page` table, and the rows are not pages, so the cost is a few GB
+rather than 22 million revisions.
 
 Two hooks use it:
 

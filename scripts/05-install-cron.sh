@@ -22,7 +22,11 @@ CRON
 )
 
 # Drop any previous block, then append the current one.
-( crontab -l 2>/dev/null | sed "/$MARKER/,/$MARKER/d"; echo "$NEW" ) | crontab -
+# `crontab -l` exits 1 when the user has no crontab at all, which under
+# `set -o pipefail` would abort before the new block was ever emitted — and
+# pipe an empty crontab into place.
+EXISTING=$(crontab -l 2>/dev/null || true)
+printf '%s\n%s\n' "$(printf '%s' "$EXISTING" | sed "/$MARKER/,/$MARKER/d")" "$NEW" | crontab -
 
 echo "Installed:"
 crontab -l | sed -n "/$MARKER/,/$MARKER/p"

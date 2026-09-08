@@ -8,7 +8,7 @@ on demand from Wikipedia's API rather than from a full dump.
 | Concern | Approach |
 | --- | --- |
 | Look and feel | Real MediaWiki with Vector 2022 (desktop) and MobileFrontend + Minerva (mobile) — the same software Wikipedia runs, so it matches by construction |
-| Titles | All ~7M article titles (plus redirects) pre-loaded as placeholder pages, so internal links are blue rather than a sea of red |
+| Titles | 22.7M upstream titles pre-loaded — 19.2M articles and redirects, plus templates, categories and modules — so internal links are blue rather than a sea of red |
 | Articles | Fetched from the Wikipedia API on first view, then cached locally |
 | Images | Never stored — `$wgUseInstantCommons` resolves them from Commons on demand |
 | Sync | Compare `lastrevid` in batches of 50 titles; re-fetch only what changed |
@@ -48,6 +48,19 @@ cd wikipedia
 ./scripts/04-import-titles.sh     # ~30-60 min, mostly unattended
 ./scripts/05-install-cron.sh      # job queue, weekly sync, weekly purge
 ```
+
+## Deploying a change
+
+```bash
+./scripts/deploy.sh
+```
+
+Always use this rather than `git pull && docker compose up -d --build`. The
+code is bind-mounted, so a rebuild frequently leaves the image digest
+unchanged; compose then declines to recreate the container and the running PHP
+keeps serving what it already had. `deploy.sh` restarts the container and then
+verifies the site actually returns 200 — the failure mode is silent from the
+CLI, because maintenance scripts keep working while every web request 500s.
 
 DNS for the domain must already point at the server — Caddy issues the
 certificate over HTTP-01 on first request.
