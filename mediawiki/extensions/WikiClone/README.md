@@ -206,3 +206,16 @@ archived upstream and exists only as a lone `master` branch on Gerrit — too
 much dependency for one red link when the behaviour is forty lines. WikiClone
 registers the magic word itself and stores the value as a page property, the
 way the real implementations do, so a skin or API consumer can use it later.
+
+## Checking a render
+
+```bash
+docker compose exec mediawiki php extensions/WikiClone/maintenance/checkPage.php \
+    --check-upstream "Barack Obama"
+```
+
+Reports parse errors, Lua failures, citation count and red links, rather than
+asking someone to load the page and squint at it. A red link is not
+automatically a defect — plenty of articles link to pages that do not exist on
+Wikipedia either — so `--check-upstream` asks which of them are red there too,
+and only the rest are worth investigating.
