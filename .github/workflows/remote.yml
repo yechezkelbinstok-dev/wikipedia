@@ -1,0 +1,52 @@
+name: remote
+
+on:
+  workflow_dispatch:
+    inputs:
+      command:
+        description: Shell command to run on the server
+        required: true
+        type: string
+        default: cd ~/wikipedia && git log --oneline -1 && docker compose ps
+
+permissions: {}
+
+concurrency:
+  group: remote-vps
+  cancel-in-progress: false
+
+env:
+  SERVER: ubuntu@51.81.85.242
+
+jobs:
+  remote:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Run command over SSH
+        shell: bash
+        env:
+          COMMAND: ${{ inputs.command }}
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
+        run: |
+          set -euo pipefail
+          umask 077
+          if [[ -z "$SSH_PRIVATE_KEY" ]]; then
+            echo 'The SSH_PRIVATE_KEY repository secret is missing.' >&2
+            exit 1
+          fi
+          ssh_dir=$(mktemp -d)
+          trap 'rm -f "$ssh_dir/key" "$ssh_dir/known_hosts"; rmdir "$ssh_dir"' EXIT
+          printf '%s\n' "$SSH_PRIVATE_KEY" > "$ssh_dir/key"
+          unset SSH_PRIVATE_KEY
+          printf '%s\n' '51.81.85.242 ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIBHjGABEOzOyGSaDeKG0ZoJvjmTbwL/EHl/ae9inx05F' > "$ssh_dir/known_hosts"
+          printf '%s\n' "$COMMAND" | ssh -T \
+            -o BatchMode=yes \
+            -o IdentitiesOnly=yes \
+            -o StrictHostKeyChecking=yes \
+            -o UserKnownHostsFile="$ssh_dir/known_hosts" \
+            -o ConnectTimeout=20 \
+            -o ServerAliveInterval=30 \
+            -o ServerAliveCountMax=6 \
+            -i "$ssh_dir/key" \
+            "$SERVER" 'bash -se'
