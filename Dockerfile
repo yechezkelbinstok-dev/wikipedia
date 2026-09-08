@@ -12,10 +12,14 @@ RUN set -eux; \
 
 RUN a2enmod rewrite
 
-# APCu backs $wgMainCacheType = CACHE_ACCEL.
+# APCu backs $wgMainCacheType = CACHE_ACCEL. Some base image builds already
+# ship it, and pecl install fails outright on a rebuild when it does, so only
+# install it when it is genuinely absent.
 RUN set -eux; \
-    pecl install apcu; \
-    docker-php-ext-enable apcu
+    if ! php -m | grep -qix apcu; then \
+        pecl install apcu; \
+        docker-php-ext-enable apcu; \
+    fi
 
 RUN set -eux; \
     cd /var/www/html/extensions; \
