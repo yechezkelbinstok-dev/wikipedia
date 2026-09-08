@@ -193,3 +193,16 @@ its 7-second default is Wikimedia's — set for Wikimedia's hardware. On a share
 interpreter is killed with `SIGXCPU`, and every module call after that point on
 the page fails. One import came back with 538 Lua errors, all from a single
 timeout. `$wgScribuntoEngineConf['luastandalone']['cpuLimit']` is raised to 60.
+
+## {{SHORTDESC:}}
+
+Wikipedia gets this magic word from its Wikidata client. Without a provider
+MediaWiki does not recognise it, parses the whole thing as an ordinary
+transclusion, and renders a red link to `Template:SHORTDESC:Some description`
+near the top of a great many articles.
+
+The standalone ShortDescription extension would also supply it, but it is
+archived upstream and exists only as a lone `master` branch on Gerrit — too
+much dependency for one red link when the behaviour is forty lines. WikiClone
+registers the magic word itself and stores the value as a page property, the
+way the real implementations do, so a skin or API consumer can use it later.

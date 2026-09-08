@@ -36,6 +36,9 @@
 				"TitleFactory",
 				"ConnectionProvider"
 			]
+		},
+		"shortdesc": {
+			"class": "MediaWiki\\Extension\\WikiClone\\ShortDescriptionHooks"
 		}
 	},
 	"Hooks": {
@@ -44,7 +47,8 @@
 		"LoadExtensionSchemaUpdates": "schema",
 		"PageDeleteComplete": "main",
 		"PrefixSearchBackend": "search",
-		"SearchGetNearMatch": "search"
+		"SearchGetNearMatch": "search",
+		"ParserFirstCallInit": "shortdesc"
 	},
 	"ServiceWiringFiles": [
 		"includes/ServiceWiring.php"
@@ -77,5 +81,8 @@
 			"value": 90
 		}
 	},
-	"manifest_version": 2
+	"manifest_version": 2,
+	"ExtensionMessagesFiles": {
+		"WikiCloneMagic": "WikiClone.i18n.magic.php"
+	}
 }

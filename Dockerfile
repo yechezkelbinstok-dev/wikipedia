@@ -36,27 +36,3 @@ RUN set -eux; \
         git clone --depth 1 -b "$MW_BRANCH" \
             https://github.com/wikimedia/mediawiki-skins-MinervaNeue.git MinervaNeue; \
     fi
-
-# ShortDescription only affects one cosmetic red link, and unlike the others
-# it has no GitHub mirror at all — only Gerrit, and only a master branch, with
-# no per-release branches. So it must not be able to fail the build: try Gerrit
-# then GitHub, release branch then default, and carry on without it if none
-# work. LocalSettings.php loads it only if it actually landed.
-ENV GIT_TERMINAL_PROMPT=0
-RUN set -eu; \
-    cd /var/www/html/extensions; \
-    for url in \
-        "https://gerrit.wikimedia.org/r/mediawiki/extensions/ShortDescription" \
-        "https://github.com/wikimedia/mediawiki-extensions-ShortDescription.git" \
-    ; do \
-        rm -rf ShortDescription; \
-        git clone --depth 1 -b "$MW_BRANCH" "$url" ShortDescription 2>/dev/null && break; \
-        rm -rf ShortDescription; \
-        git clone --depth 1 "$url" ShortDescription 2>/dev/null && break; \
-    done; \
-    if [ -f ShortDescription/extension.json ]; then \
-        echo "ShortDescription: installed"; \
-    else \
-        rm -rf ShortDescription; \
-        echo "ShortDescription: unavailable, continuing without it"; \
-    fi
