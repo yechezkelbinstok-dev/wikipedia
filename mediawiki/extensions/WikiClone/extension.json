@@ -28,13 +28,23 @@
 		},
 		"schema": {
 			"class": "MediaWiki\\Extension\\WikiClone\\SchemaHooks"
+		},
+		"search": {
+			"class": "MediaWiki\\Extension\\WikiClone\\SearchHooks",
+			"services": [
+				"WikiClone.TitleIndex",
+				"TitleFactory",
+				"ConnectionProvider"
+			]
 		}
 	},
 	"Hooks": {
 		"HtmlPageLinkRendererBegin": "main",
 		"BeforeInitialize": "main",
 		"LoadExtensionSchemaUpdates": "schema",
-		"PageDeleteComplete": "main"
+		"PageDeleteComplete": "main",
+		"PrefixSearchBackend": "search",
+		"SearchGetNearMatch": "search"
 	},
 	"ServiceWiringFiles": [
 		"includes/ServiceWiring.php"

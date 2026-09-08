@@ -77,6 +77,7 @@ creation is disabled. To make it world-readable, set
 - [x] Title index import
 - [x] On-demand article fetch
 - [x] Sync and purge
+- [x] Search over the title index
 - [ ] Main Page daily refresh
 - [ ] Branched page history
 - [ ] Wikidata-backed infobox values

@@ -139,3 +139,23 @@ rejected those declarations, refused the save of
 `Module:Citation/CS1/styles.css`, and every article with citations rendered
 "has no content" errors instead of a reference list — with nothing in the logs.
 `$wgTemplateStylesAllowedUrls` in `LocalSettings.php` now accepts both forms.
+
+## Search
+
+MediaWiki searches its own `page` and `searchindex` tables, which on a lazily
+populated wiki hold almost nothing — so out of the box the search box finds
+nothing and the only way to reach an article is to already be looking at a link
+to it.
+
+`SearchHooks` points search at the title index instead:
+
+- **`PrefixSearchBackend`** fills the search box's autocomplete from all 22M
+  upstream titles. Locally held pages come first, since those include anything
+  you wrote, which is not in the upstream index at all.
+- **`SearchGetNearMatch`** makes pressing Enter on an exact title go to the
+  article and import it, rather than landing on an empty results page.
+
+**Known limit:** full-text search over article *text* only covers articles
+already imported, because there is no local text to search for the rest. Real
+Wikipedia-grade full-text search would mean running CirrusSearch against
+Elasticsearch, which wants 2–4 GB of its own.
