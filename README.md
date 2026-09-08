@@ -45,6 +45,7 @@ exit                              # log back in so the docker group applies
 cd wikipedia
 ./scripts/02-bootstrap.sh mywiki.duckdns.org
 ./scripts/03-create-admin.sh YourName 'a-strong-password'
+./scripts/04-import-titles.sh     # ~30-60 min, mostly unattended
 ```
 
 DNS for the domain must already point at the server — Caddy issues the
@@ -59,8 +60,8 @@ creation is disabled. To make it world-readable, set
 ## Status
 
 - [x] Server, Docker, TLS, MediaWiki with Wikipedia's skins
-- [ ] Title index import
-- [ ] On-demand article fetch
+- [x] Title index import
+- [x] On-demand article fetch
 - [ ] Sync and purge
 - [ ] Main Page daily refresh
 - [ ] Branched page history

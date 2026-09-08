@@ -1,0 +1,61 @@
+{
+	"name": "WikiClone",
+	"version": "0.1.0",
+	"license-name": "GPL-2.0-or-later",
+	"descriptionmsg": "wikiclone-desc",
+	"type": "other",
+	"requires": {
+		"MediaWiki": ">= 1.43.0"
+	},
+	"MessagesDirs": {
+		"WikiClone": [ "i18n" ]
+	},
+	"AutoloadNamespaces": {
+		"MediaWiki\\Extension\\WikiClone\\": "includes/"
+	},
+	"HookHandlers": {
+		"main": {
+			"class": "MediaWiki\\Extension\\WikiClone\\Hooks",
+			"services": [
+				"MainConfig",
+				"WikiClone.TitleIndex",
+				"WikiClone.ArticleImporter",
+				"TitleFactory"
+			]
+		},
+		"schema": {
+			"class": "MediaWiki\\Extension\\WikiClone\\SchemaHooks"
+		}
+	},
+	"Hooks": {
+		"HtmlPageLinkRendererBegin": "main",
+		"BeforeInitialize": "main",
+		"LoadExtensionSchemaUpdates": "schema"
+	},
+	"ServiceWiringFiles": [
+		"includes/ServiceWiring.php"
+	],
+	"config": {
+		"WikiCloneEnabled": {
+			"description": "Master switch for on-demand importing.",
+			"value": true
+		},
+		"WikiCloneApiUrl": {
+			"description": "Upstream MediaWiki API endpoint.",
+			"value": "https://en.wikipedia.org/w/api.php"
+		},
+		"WikiCloneUserAgent": {
+			"description": "Sent with every upstream request. Wikimedia's policy requires a descriptive agent with a contact address.",
+			"value": "WikiClone/0.1 (private mirror; https://github.com/yechezkelbinstok-dev/wikipedia)"
+		},
+		"WikiCloneImportNamespaces": {
+			"description": "Namespaces whose missing pages are fetched on view.",
+			"value": [ 0 ]
+		},
+		"WikiCloneMaxDependencies": {
+			"description": "Cap on templates/modules pulled in for a single article, so one pathological page cannot stall a request forever.",
+			"value": 800
+		}
+	},
+	"manifest_version": 2
+}

@@ -37,6 +37,7 @@ services:
     volumes:
       - mw_images:/var/www/html/images
       - ./mediawiki/LocalSettings.php:/var/www/html/LocalSettings.php:ro
+      - ./mediawiki/extensions/WikiClone:/var/www/html/extensions/WikiClone:ro
       - ./mediawiki/php-custom.ini:/usr/local/etc/php/conf.d/zz-wiki.ini:ro
       - ./mediawiki/apache-limits.conf:/etc/apache2/conf-enabled/zz-limits.conf:ro
       - dumps:/dumps

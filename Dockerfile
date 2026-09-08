@@ -7,7 +7,7 @@ ARG MW_BRANCH=REL1_43
 
 RUN set -eux; \
     apt-get update; \
-    apt-get install -y --no-install-recommends git; \
+    apt-get install -y --no-install-recommends git curl ca-certificates; \
     rm -rf /var/lib/apt/lists/*
 
 RUN a2enmod rewrite

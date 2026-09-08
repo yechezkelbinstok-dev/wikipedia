@@ -130,6 +130,12 @@ wfLoadExtension( 'ReplaceText' );
 $wgPopupsHideOptInOnPreferencesPage = false;
 $wgPopupsReferencePreviewsBetaFeature = false;
 
+// ------------------------------------------------------- on-demand mirroring --
+// Title index (blue links) plus fetch-on-first-view. See
+// extensions/WikiClone/README.md.
+wfLoadExtension( 'WikiClone' );
+$wgWikiCloneImportNamespaces = [ NS_MAIN ];
+
 // ------------------------------------------------------------------- debug ---
 // Turn these off once the build settles.
 $wgShowExceptionDetails = true;
