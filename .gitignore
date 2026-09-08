@@ -1,0 +1,4 @@
+.env
+mediawiki/LocalSettings.generated.php
+data/
+*.log

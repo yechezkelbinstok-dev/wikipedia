@@ -1,0 +1,64 @@
+services:
+  db:
+    image: mariadb:11.4
+    restart: unless-stopped
+    environment:
+      MARIADB_DATABASE: ${DB_NAME}
+      MARIADB_USER: ${DB_USER}
+      MARIADB_PASSWORD: ${DB_PASSWORD}
+      MARIADB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./mariadb/wiki.cnf:/etc/mysql/conf.d/wiki.cnf:ro
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+      start_period: 30s
+
+  mediawiki:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: wikiclone/mediawiki:local
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      MW_DB_SERVER: db
+      MW_DB_NAME: ${DB_NAME}
+      MW_DB_USER: ${DB_USER}
+      MW_DB_PASSWORD: ${DB_PASSWORD}
+      MW_SECRET_KEY: ${MW_SECRET_KEY}
+      MW_UPGRADE_KEY: ${MW_UPGRADE_KEY}
+      WIKI_DOMAIN: ${WIKI_DOMAIN}
+    volumes:
+      - mw_images:/var/www/html/images
+      - ./mediawiki/LocalSettings.php:/var/www/html/LocalSettings.php:ro
+      - ./mediawiki/php-custom.ini:/usr/local/etc/php/conf.d/zz-wiki.ini:ro
+      - ./mediawiki/apache-limits.conf:/etc/apache2/conf-enabled/zz-limits.conf:ro
+      - dumps:/dumps
+
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on:
+      - mediawiki
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      WIKI_DOMAIN: ${WIKI_DOMAIN}
+    volumes:
+      - ./caddy/Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+
+volumes:
+  db_data:
+  mw_images:
+  caddy_data:
+  caddy_config:
+  dumps:
