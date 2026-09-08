@@ -4,5 +4,6 @@
 	},
 	"wikiclone-desc": "Populates the wiki on demand from Wikipedia: a pre-loaded title index keeps links blue, and articles are fetched the first time they are viewed.",
 	"wikiclone-import-missing": "Upstream has no page named \"$1\".",
-	"wikiclone-import-failed": "Import from upstream failed: $1"
+	"wikiclone-import-failed": "Import from upstream failed: $1",
+	"wikiclone-save-failed": "Could not save \"$1\" during import: $2"
 }

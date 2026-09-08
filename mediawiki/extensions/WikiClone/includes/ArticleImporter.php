@@ -65,18 +65,20 @@ class ArticleImporter {
 				return StatusValue::newFatal( 'wikiclone-import-missing', $prefixed );
 			}
 
+			$status = StatusValue::newGood();
+
 			$dependencies = $this->missingDependencies( $prefixed );
 			if ( $dependencies ) {
-				$this->saveMany(
+				$status->merge( $this->saveMany(
 					$this->api->getWikitext( $dependencies ),
 					$user,
 					PageStateStore::KIND_DEPENDENCY
-				);
+				) );
 			}
 
-			$this->saveMany( $articles, $user, PageStateStore::KIND_ARTICLE );
+			$status->merge( $this->saveMany( $articles, $user, PageStateStore::KIND_ARTICLE ) );
 
-			return StatusValue::newGood();
+			return $status;
 		} catch ( Throwable $e ) {
 			// A failed import must never take the page view down with it: the
 			// reader should get MediaWiki's ordinary "no such page" instead.
@@ -107,19 +109,25 @@ class ArticleImporter {
 
 	/**
 	 * @param array<string,array{text:string,revid:int}> $pages
-	 * @param int $kind 0 for a requested article, 1 for a dependency
+	 * @param int $kind one of PageStateStore::KIND_*
 	 */
-	private function saveMany( array $pages, User $user, int $kind ): void {
+	private function saveMany( array $pages, User $user, int $kind ): StatusValue {
+		$status = StatusValue::newGood();
+
 		foreach ( $pages as $prefixedTitle => $page ) {
 			$title = $this->titleFactory->newFromText( $prefixedTitle );
 			if ( !$title || $title->exists() ) {
 				continue;
 			}
-			$this->save( $title, $page['text'], $page['revid'], $user, $kind );
+			$status->merge( $this->save( $title, $page['text'], $page['revid'], $user, $kind ) );
 		}
+
+		return $status;
 	}
 
-	private function save( Title $title, string $text, int $remoteRevId, User $user, int $kind ): void {
+	private function save(
+		Title $title, string $text, int $remoteRevId, User $user, int $kind
+	): StatusValue {
 		$handler = $this->contentHandlerFactory->getContentHandler(
 			$title->getContentModel()
 		);
@@ -134,14 +142,32 @@ class ArticleImporter {
 			EDIT_NEW | EDIT_FORCE_BOT | EDIT_SUPPRESS_RC
 		);
 
-		if ( !$revision ) {
-			return;
+		// MediaWiki can refuse a save for reasons that have nothing to do with
+		// the request being wrong — a content sanitiser rejecting the upstream
+		// text, for instance. Dropping that silently is how one missing
+		// stylesheet turns into every citation on the wiki rendering an error
+		// with nothing in the logs to explain it.
+		$saveStatus = $updater->getStatus();
+		if ( !$revision || !$saveStatus || !$saveStatus->isOK() ) {
+			$why = $saveStatus
+				? $saveStatus->getWikiText( false, false, 'en' )
+				: 'saveRevision() returned no revision';
+
+			wfLogWarning(
+				'WikiClone could not save ' . $title->getPrefixedText() . ': ' . $why
+			);
+
+			return StatusValue::newFatal(
+				'wikiclone-save-failed', $title->getPrefixedText(), $why
+			);
 		}
 
 		$pageId = $title->getArticleID( IDBAccessObject::READ_LATEST );
 		if ( $pageId ) {
 			$this->pageState->record( $pageId, $remoteRevId, $kind );
 		}
+
+		return StatusValue::newGood();
 	}
 
 	/**
@@ -162,13 +188,19 @@ class ArticleImporter {
 			EDIT_UPDATE | EDIT_FORCE_BOT | EDIT_SUPPRESS_RC
 		);
 
-		if ( $revision ) {
-			$this->pageState->record(
-				$title->getArticleID( IDBAccessObject::READ_LATEST ),
-				$remoteRevId,
-				$kind
-			);
+		$saveStatus = $updater->getStatus();
+		if ( !$revision || !$saveStatus || !$saveStatus->isOK() ) {
+			wfLogWarning( 'WikiClone could not sync ' . $title->getPrefixedText() . ': ' . (
+				$saveStatus ? $saveStatus->getWikiText( false, false, 'en' ) : 'no revision'
+			) );
+			return;
 		}
+
+		$this->pageState->record(
+			$title->getArticleID( IDBAccessObject::READ_LATEST ),
+			$remoteRevId,
+			$kind
+		);
 	}
 
 	/**
@@ -176,7 +208,7 @@ class ArticleImporter {
 	 * click the link — page history should read as "imported", not "edited by
 	 * the reader".
 	 */
-	private function getImportUser(): User {
+	public function getImportUser(): User {
 		return User::newSystemUser( self::IMPORT_USER, [ 'steal' => true ] );
 	}
 }

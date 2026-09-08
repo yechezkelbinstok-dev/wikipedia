@@ -111,3 +111,31 @@ to happen. `LocalEditDetector` is the single place that decision is made.
 | every 5 min | drain the job queue — `$wgJobRunRate = 0`, so nothing else does |
 | Sundays 04:23 | sync |
 | Sundays 05:47 | purge, including orphaned dependencies |
+
+## Importing on demand
+
+```bash
+docker compose exec mediawiki php extensions/WikiClone/maintenance/importPages.php "Albert Einstein"
+docker compose exec mediawiki php extensions/WikiClone/maintenance/importPages.php --file=titles.txt
+docker compose exec mediawiki php extensions/WikiClone/maintenance/importPages.php --force "Foobar"
+```
+
+Two uses: reproducing an import failure with the errors in front of you, and
+pre-warming. Pre-warming is what makes the wiki feel fast — the first article
+in a topic pulls its whole template tree, the tenth pulls almost nothing — so
+running it ahead of time moves that cost off the first page view.
+
+## When an import goes wrong
+
+MediaWiki can refuse a save for reasons unrelated to the request, and a
+dependency that fails to save takes the article's rendering with it. The
+importer reports those instead of dropping them: failures are logged with the
+title and the reason, and `import()` returns a status carrying them.
+
+The case that motivated this: Wikipedia's stylesheets reference Commons with
+protocol-relative URLs (`url(//upload.wikimedia.org/...)`), while
+TemplateStyles' default allow-list is anchored on `https://`. The sanitiser
+rejected those declarations, refused the save of
+`Module:Citation/CS1/styles.css`, and every article with citations rendered
+"has no content" errors instead of a reference list — with nothing in the logs.
+`$wgTemplateStylesAllowedUrls` in `LocalSettings.php` now accepts both forms.

@@ -4,5 +4,6 @@
 	},
 	"wikiclone-desc": "{{desc|name=WikiClone}}",
 	"wikiclone-import-missing": "Error shown when the requested title does not exist upstream. $1 is the prefixed title.",
-	"wikiclone-import-failed": "Error shown when an import fails. $1 is the underlying error message."
+	"wikiclone-import-failed": "Error shown when an import fails. $1 is the underlying error message.",
+	"wikiclone-save-failed": "Error when MediaWiki refuses to save an imported page. $1 is the prefixed title, $2 the underlying reason."
 }

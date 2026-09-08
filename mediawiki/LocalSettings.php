@@ -130,6 +130,24 @@ wfLoadExtension( 'ReplaceText' );
 $wgPopupsHideOptInOnPreferencesPage = false;
 $wgPopupsReferencePreviewsBetaFeature = false;
 
+// ------------------------------------------------------------ TemplateStyles --
+// Wikipedia's stylesheets reference Commons with protocol-relative URLs —
+// url(//upload.wikimedia.org/...) — while TemplateStyles' default allow-list is
+// anchored on https://. The sanitiser therefore rejects those declarations and
+// refuses the whole page save, so Module:Citation/CS1/styles.css never lands
+// and every article with citations renders errors instead of a reference list.
+//
+// Declared in full rather than appended to, so the result does not depend on
+// whether extension defaults have been merged in by this point.
+$wgTemplateStylesAllowedUrls = [
+	'audio' => [ '<^(?:https:)?//upload\.wikimedia\.org/wikipedia/commons/>' ],
+	'image' => [ '<^(?:https:)?//upload\.wikimedia\.org/wikipedia/commons/>' ],
+	'svg' => [ '<^(?:https:)?//upload\.wikimedia\.org/wikipedia/commons/[^?#]*\.svg(?:[?#]|$)>' ],
+	'font' => [],
+	'namespace' => [ '<.>' ],
+	'css' => [],
+];
+
 // ------------------------------------------------------- on-demand mirroring --
 // Title index (blue links) plus fetch-on-first-view. See
 // extensions/WikiClone/README.md.

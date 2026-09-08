@@ -125,7 +125,13 @@ class Hooks implements
 			return;
 		}
 
-		$this->importer->import( $title );
+		$status = $this->importer->import( $title );
+		if ( !$status->isGood() ) {
+			wfLogWarning(
+				'WikiClone import of ' . $title->getPrefixedText() . ' was incomplete: '
+				. $status->getWikiText( false, false, 'en' )
+			);
+		}
 	}
 
 	/**
