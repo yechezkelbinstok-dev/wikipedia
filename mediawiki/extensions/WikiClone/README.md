@@ -219,3 +219,28 @@ asking someone to load the page and squint at it. A red link is not
 automatically a defect — plenty of articles link to pages that do not exist on
 Wikipedia either — so `--check-upstream` asks which of them are red there too,
 and only the rest are worth investigating.
+
+## Speed
+
+Measured on the 2 vCPU host, after LuaSandbox and the Scribunto limits were
+sorted out:
+
+| | Cold (first ever view) | Warm (parser cache) |
+| --- | --- | --- |
+| Internet Engineering Task Force (58 citations) | 4.4s | 0.13s |
+| Golden eagle, templates already present | 3.6s | — |
+| Peregrine falcon, 110 new templates | 12.6s | — |
+| Barack Obama (2.9 MB, 497 citations) | 24.4s | 0.17s |
+
+The cold cost is paid once per article, ever. What makes browsing feel fast is
+that the second view of anything is a sixth of a second, so the lever that
+matters is **pre-warming** — paying that first cost in advance rather than
+while someone is waiting:
+
+```bash
+./scripts/07-prewarm.sh --category "Birds of prey"
+```
+
+Within a cold import, fetching is not the cost: 110 dependencies took 0.7s to
+fetch and 24s to save. That is why dependency saves skip the search index —
+nobody full-text searches `Module:Citation/CS1`.

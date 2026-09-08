@@ -148,12 +148,29 @@ class ArticleImporter {
 	private function saveMany( array $pages, User $user, int $kind ): StatusValue {
 		$status = StatusValue::newGood();
 
+		// Every save builds a search index entry, which means parsing the page
+		// for text. For a template or a Lua module that work is pure waste —
+		// nobody full-text searches Module:Citation/CS1 — and an article drags
+		// in a hundred of them, where saving, not fetching, is almost all of
+		// the wait.
+		$searchUpdatesDisabled = null;
+		if ( $kind === PageStateStore::KIND_DEPENDENCY ) {
+			global $wgDisableSearchUpdate;
+			$searchUpdatesDisabled = $wgDisableSearchUpdate;
+			$wgDisableSearchUpdate = true;
+		}
+
 		foreach ( $pages as $prefixedTitle => $page ) {
 			$title = $this->titleFactory->newFromText( $prefixedTitle );
 			if ( !$title || $title->exists() ) {
 				continue;
 			}
 			$status->merge( $this->save( $title, $page['text'], $page['revid'], $user, $kind ) );
+		}
+
+		if ( $searchUpdatesDisabled !== null ) {
+			global $wgDisableSearchUpdate;
+			$wgDisableSearchUpdate = $searchUpdatesDisabled;
 		}
 
 		return $status;

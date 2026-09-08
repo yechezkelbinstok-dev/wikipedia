@@ -26,6 +26,9 @@ class ImportPages extends Maintenance {
 		$this->addDescription( 'Import specific pages from upstream.' );
 		$this->addOption( 'file', 'File of titles, one per line', false, true );
 		$this->addOption( 'force', 'Re-import even if the page already exists' );
+		$this->addOption( 'category', 'Import every article in this category', false, true );
+		$this->addOption( 'limit', 'Cap how many titles a category contributes', false, true );
+		$this->addOption( 'warm', 'Render each page after importing, so the first real view is served from the parser cache' );
 		$this->addArg( 'title', 'Title to import', false, true );
 		$this->requireExtension( 'WikiClone' );
 	}
@@ -44,6 +47,7 @@ class ImportPages extends Maintenance {
 
 		$imported = 0;
 		$failed = 0;
+		$warmed = 0;
 
 		foreach ( $titles as $text ) {
 			$title = Title::newFromText( $text );
@@ -87,15 +91,36 @@ class ImportPages extends Maintenance {
 				$failed++;
 			}
 
+			if ( $this->hasOption( 'warm' ) && $title->exists() ) {
+				$warmStart = microtime( true );
+				$page = $wikiPageFactory->newFromTitle( $title );
+				$page->getParserOutput( $page->makeParserOptions( 'canonical' ) );
+				$this->output( sprintf(
+					"    warmed in %ss\n", round( microtime( true ) - $warmStart, 1 )
+				) );
+				$warmed++;
+			}
+
 			$this->waitForReplication();
 		}
 
-		$this->output( "Imported $imported, $failed with problems.\n" );
+		$this->output( "Imported $imported, $failed with problems"
+			. ( $this->hasOption( 'warm' ) ? ", $warmed warmed" : '' ) . ".\n" );
 	}
 
 	/** @return string[] */
 	private function collectTitles(): array {
 		$titles = [];
+
+		if ( $this->hasOption( 'category' ) ) {
+			$api = MediaWikiServices::getInstance()->getService( 'WikiClone.WikipediaApi' );
+			$members = $api->getCategoryMembers(
+				$this->getOption( 'category' ),
+				(int)$this->getOption( 'limit', 500 )
+			);
+			$this->output( 'Category contributed ' . count( $members ) . " titles\n" );
+			$titles = $members;
+		}
 
 		if ( $this->hasOption( 'file' ) ) {
 			$path = $this->getOption( 'file' );

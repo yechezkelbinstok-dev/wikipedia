@@ -119,6 +119,47 @@ class WikipediaApi {
 		return $result;
 	}
 
+	/**
+	 * Article titles in a category, following continuation.
+	 *
+	 * Pre-warming a topic is the point: the first article in one pulls in its
+	 * whole template tree and the tenth pulls in almost nothing, so warming a
+	 * category ahead of time moves that cost off the first click.
+	 *
+	 * @return string[] prefixed titles
+	 */
+	public function getCategoryMembers( string $category, int $limit = 500 ): array {
+		if ( !preg_match( '/^Category:/i', $category ) ) {
+			$category = 'Category:' . $category;
+		}
+
+		$titles = [];
+		$continue = [];
+
+		do {
+			$data = $this->request( [
+				'action' => 'query',
+				'list' => 'categorymembers',
+				'cmtitle' => $category,
+				'cmtype' => 'page',
+				'cmlimit' => 'max',
+			] + $continue );
+
+			foreach ( $data['query']['categorymembers'] ?? [] as $member ) {
+				if ( isset( $member['title'] ) ) {
+					$titles[] = $member['title'];
+				}
+				if ( count( $titles ) >= $limit ) {
+					return $titles;
+				}
+			}
+
+			$continue = $data['continue'] ?? [];
+		} while ( $continue );
+
+		return $titles;
+	}
+
 	private function request( array $params ): array {
 		$params['format'] = 'json';
 		$params['formatversion'] = 2;
