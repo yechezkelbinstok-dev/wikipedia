@@ -32,7 +32,7 @@ class ImportTitles extends Maintenance {
 	public function execute() {
 		$path = $this->getOption( 'file' );
 		$batchSize = (int)$this->getOption( 'batch-size', 5000 );
-		$keep = array_map( 'intval', explode( ',', $this->getOption( 'namespaces', '0,10,14,828' ) ) );
+		$keep = array_map( 'intval', explode( ',', $this->getOption( 'namespaces', '0,4,10,12,14,100,828' ) ) );
 
 		$handle = gzopen( $path, 'rb' );
 		if ( !$handle ) {

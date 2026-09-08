@@ -47,6 +47,7 @@ cd wikipedia
 ./scripts/03-create-admin.sh YourName 'a-strong-password'
 ./scripts/04-import-titles.sh     # ~30-60 min, mostly unattended
 ./scripts/05-install-cron.sh      # job queue, weekly sync, weekly purge
+./scripts/06-import-interface.sh  # Wikipedia's CSS, tab labels, sidebar
 ```
 
 ## Deploying a change

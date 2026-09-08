@@ -159,3 +159,28 @@ to it.
 already imported, because there is no local text to search for the rest. Real
 Wikipedia-grade full-text search would mean running CirrusSearch against
 Elasticsearch, which wants 2–4 GB of its own.
+
+## Matching Wikipedia's presentation
+
+Three things a stock MediaWiki gets wrong that have nothing to do with article
+content:
+
+**Namespaces.** English Wikipedia defines several core does not — Portal,
+Draft, TimedText. Templates reach into them through Scribunto, and
+`mw.title.new( 'Portal:Foo' )` throws *"unrecognized namespace name"* when the
+namespace is absent, so a navbox mentioning a portal renders as a red Lua
+error where the box should be. `LocalSettings.php` declares them.
+
+**Interface pages.** `MediaWiki:Common.css` carries a great deal of
+Wikipedia's look, and messages like `MediaWiki:Nstab-main` are why its tabs
+read "Article / Talk" rather than MediaWiki's default "Page / Discussion".
+Absent, MediaWiki silently falls back to its own defaults:
+
+```bash
+./scripts/06-import-interface.sh
+```
+
+**Namespaces in the title index.** Articles link to `Wikipedia:` and `Help:`
+pages from their maintenance templates. Indexing main space alone leaves those
+red on an otherwise perfect article, so the index covers main, Wikipedia,
+Template, Help, Category, Portal and Module.

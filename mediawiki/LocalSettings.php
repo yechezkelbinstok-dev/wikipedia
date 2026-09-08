@@ -130,6 +130,56 @@ wfLoadExtension( 'ReplaceText' );
 $wgPopupsHideOptInOnPreferencesPage = false;
 $wgPopupsReferencePreviewsBetaFeature = false;
 
+// --------------------------------------------------------------- namespaces --
+// English Wikipedia defines namespaces core does not. Templates reach into
+// them through Scribunto — mw.title.new( 'Portal:Foo' ) throws
+// "unrecognized namespace name" if the namespace is absent — so a navbox
+// referencing a portal takes the whole box down with a Lua error.
+define( 'NS_PORTAL', 100 );
+define( 'NS_PORTAL_TALK', 101 );
+define( 'NS_DRAFT', 118 );
+define( 'NS_DRAFT_TALK', 119 );
+define( 'NS_TIMEDTEXT', 710 );
+define( 'NS_TIMEDTEXT_TALK', 711 );
+
+$wgExtraNamespaces[NS_PORTAL] = 'Portal';
+$wgExtraNamespaces[NS_PORTAL_TALK] = 'Portal_talk';
+$wgExtraNamespaces[NS_DRAFT] = 'Draft';
+$wgExtraNamespaces[NS_DRAFT_TALK] = 'Draft_talk';
+$wgExtraNamespaces[NS_TIMEDTEXT] = 'TimedText';
+$wgExtraNamespaces[NS_TIMEDTEXT_TALK] = 'TimedText_talk';
+
+$wgNamespaceAliases['WP'] = NS_PROJECT;
+$wgNamespaceAliases['WT'] = NS_PROJECT_TALK;
+$wgNamespaceAliases['Project'] = NS_PROJECT;
+$wgNamespaceAliases['Image'] = NS_FILE;
+$wgNamespaceAliases['Image_talk'] = NS_FILE_TALK;
+
+// Subpages, as enwiki has them. Notably NOT in main space.
+foreach ( [
+	NS_USER, NS_USER_TALK, NS_PROJECT, NS_PROJECT_TALK, NS_TALK,
+	NS_TEMPLATE, NS_TEMPLATE_TALK, NS_HELP, NS_HELP_TALK,
+	NS_PORTAL, NS_PORTAL_TALK, NS_DRAFT, NS_DRAFT_TALK,
+] as $ns ) {
+	$wgNamespacesWithSubpages[$ns] = true;
+}
+
+// ---------------------------------------------------------------- branding --
+// Vector 2022 draws the icon, wordmark and tagline separately.
+$wgLogos = [
+	'icon' => 'https://en.wikipedia.org/static/images/icons/wikipedia.png',
+	'wordmark' => [
+		'src' => 'https://en.wikipedia.org/static/images/mobile/copyright/wikipedia-wordmark-en.svg',
+		'width' => 116,
+		'height' => 18,
+	],
+	'tagline' => [
+		'src' => 'https://en.wikipedia.org/static/images/mobile/copyright/wikipedia-tagline-en.svg',
+		'width' => 117,
+		'height' => 13,
+	],
+];
+
 // ------------------------------------------------------------ TemplateStyles --
 // Wikipedia's stylesheets reference Commons with protocol-relative URLs —
 // url(//upload.wikimedia.org/...) — while TemplateStyles' default allow-list is
@@ -152,7 +202,10 @@ $wgTemplateStylesAllowedUrls = [
 // Title index (blue links) plus fetch-on-first-view. See
 // extensions/WikiClone/README.md.
 wfLoadExtension( 'WikiClone' );
-$wgWikiCloneImportNamespaces = [ NS_MAIN ];
+// Wikipedia: and Help: pages are linked from article maintenance templates and
+// from the sidebar; leaving them out is what makes "Wikipedia:Verifiability"
+// render red on an otherwise perfect article.
+$wgWikiCloneImportNamespaces = [ NS_MAIN, NS_PROJECT, NS_HELP, NS_PORTAL ];
 
 // ------------------------------------------------------------------- debug ---
 // Turn these off once the build settles.

@@ -23,11 +23,11 @@ docker compose exec -T mediawiki bash -c "
 	fi
 "
 
-echo "==> Loading titles (namespaces: main, Template, Category, Module)"
+echo "==> Loading titles (main, Wikipedia, Template, Help, Category, Portal, Module)"
 docker compose exec -T mediawiki \
 	php extensions/WikiClone/maintenance/importTitles.php \
 		--file="$DUMP_FILE" \
-		--namespaces=0,10,14,828
+		--namespaces=0,4,10,12,14,100,828
 
 echo
 echo "Title index loaded. Links to real Wikipedia articles will now render blue,"

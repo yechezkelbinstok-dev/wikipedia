@@ -94,7 +94,12 @@ class ImportPages extends Maintenance {
 			if ( $lines === false ) {
 				$this->fatalError( "Could not read $path" );
 			}
-			$titles = $lines;
+			foreach ( $lines as $line ) {
+				$line = trim( $line );
+				if ( $line !== '' && $line[0] !== '#' ) {
+					$titles[] = $line;
+				}
+			}
 		}
 
 		for ( $i = 0; $i < $this->getArgCount(); $i++ ) {
