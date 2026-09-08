@@ -117,9 +117,15 @@ $wgScribuntoDefaultEngine = extension_loaded( 'luasandbox' ) ? 'luasandbox' : 'l
 // shared 2-vCPU VPS a long article's module tree blows through it, the
 // interpreter is killed with SIGXCPU, and every later module call on the page
 // fails — one article came back with 538 Lua errors from a single timeout.
-$wgScribuntoEngineConf['luastandalone']['cpuLimit'] = 60;
-$wgScribuntoEngineConf['luasandbox']['cpuLimit'] = 60;
-$wgScribuntoEngineConf['luasandbox']['memoryLimit'] = 100 * 1024 * 1024;
+// Scribunto's memory ceiling is per-engine and separate again from the CPU
+// one. A long article exhausts the 50 MB default here and every module call
+// after that point fails with "not enough memory" — 23 of the 28 Lua errors on
+// one article were that, not the timeout. Kept well under $wgMaxShellMemory,
+// which bounds the standalone engine's process from outside.
+foreach ( [ 'luastandalone', 'luasandbox' ] as $engine ) {
+	$wgScribuntoEngineConf[$engine]['cpuLimit'] = 60;
+	$wgScribuntoEngineConf[$engine]['memoryLimit'] = 150 * 1024 * 1024;
+}
 
 wfLoadExtension( 'Cite' );
 wfLoadExtension( 'CiteThisPage' );

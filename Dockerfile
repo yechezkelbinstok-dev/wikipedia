@@ -36,7 +36,9 @@ RUN set -eu; \
     apt-get update; \
     apt-get install -y --no-install-recommends liblua5.1-0; \
     apt-get install -y --no-install-recommends $PHPIZE_DEPS liblua5.1-0-dev; \
-    if pecl install luasandbox \
+    rm -f /usr/local/etc/php/conf.d/docker-php-ext-luasandbox.ini; \
+    pecl uninstall -r luasandbox >/dev/null 2>&1 || true; \
+    if pecl install --force luasandbox \
         && docker-php-ext-enable luasandbox \
         && php -r 'exit(extension_loaded("luasandbox") ? 0 : 1);'; then \
         echo "luasandbox: installed"; \
