@@ -40,16 +40,18 @@ class CheckPage extends Maintenance {
 		$page = $services->getWikiPageFactory()->newFromTitle( $title );
 
 		$start = microtime( true );
-		$parserOutput = $page->getParserOutput(
-			$services->getParserOptionsFactory()->newCanonical( 'canonical' )
-		);
+		$parserOutput = $page->getParserOutput( $page->makeParserOptions( 'canonical' ) );
 		$elapsed = round( microtime( true ) - $start, 2 );
 
 		if ( !$parserOutput ) {
 			$this->fatalError( 'Parse produced no output.' );
 		}
 
-		$html = $parserOutput->getContentHolderText();
+		// getContentHolderText() is the newer accessor; fall back so this keeps
+		// working across MediaWiki versions rather than fataling on one.
+		$html = method_exists( $parserOutput, 'getContentHolderText' )
+			? $parserOutput->getContentHolderText()
+			: $parserOutput->getText();
 
 		$this->output( $title->getPrefixedText() . "\n" );
 		$this->output( str_repeat( '-', 60 ) . "\n" );
