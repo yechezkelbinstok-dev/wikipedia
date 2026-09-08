@@ -60,13 +60,21 @@ class CheckPage extends Maintenance {
 		$errors = $this->distinct( $html, '/<[^>]*class="[^"]*\berror\b[^"]*"[^>]*>(.*?)</s' );
 		$this->output( sprintf( "  error spans   %d (%d distinct)\n", $errors['total'], count( $errors['distinct'] ) ) );
 
-		$lua = substr_count( $html, 'Lua error' );
-		$this->output( sprintf( "  Lua errors    %d\n", $lua ) );
+		$lua = $this->luaErrors( $html );
+		$this->output( sprintf( "  Lua errors    %d (%d distinct)\n",
+			array_sum( $lua ), count( $lua ) ) );
 
 		$this->output( sprintf( "  citations     %d\n", substr_count( $html, 'class="reference"' ) ) );
 
 		$redLinks = $this->redLinks( $html );
 		$this->output( sprintf( "  red links     %d\n", count( $redLinks ) ) );
+
+		if ( $lua ) {
+			$this->output( "\nLua errors:\n" );
+			foreach ( $lua as $message => $count ) {
+				$this->output( sprintf( "  [%dx] %s\n", $count, $this->trim( $message ) ) );
+			}
+		}
 
 		if ( $errors['distinct'] ) {
 			$this->output( "\ndistinct errors:\n" );
@@ -91,6 +99,22 @@ class CheckPage extends Maintenance {
 				$this->output( '  ' . $red . $note . "\n" );
 			}
 		}
+	}
+
+	/**
+	 * @return array<string,int> message => occurrences
+	 */
+	private function luaErrors( string $html ): array {
+		preg_match_all( '/Lua error[^<]{0,300}/', $html, $matches );
+
+		$counts = [];
+		foreach ( $matches[0] ?? [] as $message ) {
+			$message = trim( html_entity_decode( $message ) );
+			$counts[$message] = ( $counts[$message] ?? 0 ) + 1;
+		}
+		arsort( $counts );
+
+		return $counts;
 	}
 
 	private function distinct( string $html, string $pattern ): array {

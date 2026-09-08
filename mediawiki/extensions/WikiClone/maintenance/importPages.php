@@ -4,6 +4,7 @@ namespace MediaWiki\Extension\WikiClone\Maintenance;
 
 use Maintenance;
 use MediaWiki\MediaWikiServices;
+use MediaWiki\Status\Status;
 use MediaWiki\Title\Title;
 
 $IP = getenv( 'MW_INSTALL_PATH' ) ?: __DIR__ . '/../../..';
@@ -82,7 +83,7 @@ class ImportPages extends Maintenance {
 				$imported++;
 			} else {
 				$this->output( "  PROBLEM {$title->getPrefixedText()} ({$elapsed}s): "
-					. $status->getWikiText( false, false, 'en' ) . "\n" );
+					. Status::wrap( $status )->getWikiText( false, false, 'en' ) . "\n" );
 				$failed++;
 			}
 

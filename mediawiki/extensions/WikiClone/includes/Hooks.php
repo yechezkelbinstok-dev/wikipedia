@@ -9,6 +9,7 @@ use MediaWiki\Deferred\DeferredUpdates;
 use MediaWiki\Html\Html;
 use MediaWiki\Linker\Hook\HtmlPageLinkRendererBeginHook;
 use MediaWiki\Page\Hook\PageDeleteCompleteHook;
+use MediaWiki\Status\Status;
 use MediaWiki\Title\Title;
 use MediaWiki\Title\TitleFactory;
 
@@ -129,7 +130,7 @@ class Hooks implements
 		if ( !$status->isGood() ) {
 			wfLogWarning(
 				'WikiClone import of ' . $title->getPrefixedText() . ' was incomplete: '
-				. $status->getWikiText( false, false, 'en' )
+				. Status::wrap( $status )->getWikiText( false, false, 'en' )
 			);
 		}
 	}
