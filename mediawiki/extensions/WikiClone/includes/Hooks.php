@@ -5,27 +5,36 @@ namespace MediaWiki\Extension\WikiClone;
 use HtmlArmor;
 use MediaWiki\Config\Config;
 use MediaWiki\Hook\BeforeInitializeHook;
+use MediaWiki\Deferred\DeferredUpdates;
 use MediaWiki\Html\Html;
 use MediaWiki\Linker\Hook\HtmlPageLinkRendererBeginHook;
+use MediaWiki\Page\Hook\PageDeleteCompleteHook;
 use MediaWiki\Title\Title;
 use MediaWiki\Title\TitleFactory;
 
-class Hooks implements HtmlPageLinkRendererBeginHook, BeforeInitializeHook {
+class Hooks implements
+	HtmlPageLinkRendererBeginHook,
+	BeforeInitializeHook,
+	PageDeleteCompleteHook
+{
 
 	private Config $config;
 	private TitleIndex $titleIndex;
 	private ArticleImporter $importer;
+	private PageStateStore $pageState;
 	private TitleFactory $titleFactory;
 
 	public function __construct(
 		Config $config,
 		TitleIndex $titleIndex,
 		ArticleImporter $importer,
+		PageStateStore $pageState,
 		TitleFactory $titleFactory
 	) {
 		$this->config = $config;
 		$this->titleIndex = $titleIndex;
 		$this->importer = $importer;
+		$this->pageState = $pageState;
 		$this->titleFactory = $titleFactory;
 	}
 
@@ -94,7 +103,16 @@ class Hooks implements HtmlPageLinkRendererBeginHook, BeforeInitializeHook {
 			return;
 		}
 
-		if ( !$title instanceof Title || !$title->canExist() || $title->exists() ) {
+		if ( !$title instanceof Title || !$title->canExist() ) {
+			return;
+		}
+
+		if ( $title->exists() ) {
+			// Reading a page is what keeps it from being purged.
+			$pageId = $title->getArticleID();
+			DeferredUpdates::addCallableUpdate( function () use ( $pageId ) {
+				$this->pageState->touch( $pageId );
+			} );
 			return;
 		}
 
@@ -108,5 +126,17 @@ class Hooks implements HtmlPageLinkRendererBeginHook, BeforeInitializeHook {
 		}
 
 		$this->importer->import( $title );
+	}
+
+	/**
+	 * A deleted page's bookkeeping row is dead weight: re-importing the same
+	 * title creates a new page id, so the old row would never be reused.
+	 *
+	 * @inheritDoc
+	 */
+	public function onPageDeleteComplete(
+		$page, $deleter, $reason, $pageID, $deletedRev, $logEntry, $archivedRevisionCount
+	) {
+		$this->pageState->forget( $pageID );
 	}
 }

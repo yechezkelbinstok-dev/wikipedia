@@ -65,3 +65,40 @@ pathological page cannot stall a request indefinitely.
 ```bash
 ./scripts/04-import-titles.sh
 ```
+
+## Sync
+
+```bash
+docker compose exec mediawiki php extensions/WikiClone/maintenance/syncArticles.php --dry-run
+```
+
+Checking is cheap — 50 titles per API call returns each page's current
+revision id — so only pages whose revision actually moved get their text
+refetched. A wiki holding 5,000 articles costs roughly 100 calls to check.
+
+## Purge
+
+```bash
+docker compose exec mediawiki php extensions/WikiClone/maintenance/purgeStale.php --dry-run
+```
+
+Deleting an imported article costs nothing: the title stays in the index, so
+links to it are still blue and viewing it fetches it again. `--dependencies`
+also drops templates and modules that nothing transcludes any more.
+
+## What is never touched
+
+Both sync and purge skip any page whose newest revision was not written by the
+importer. Until branched history exists, syncing over a local edit would
+destroy it and purging one would destroy it permanently, so neither is allowed
+to happen. `LocalEditDetector` is the single place that decision is made.
+
+## Recurring jobs
+
+`scripts/05-install-cron.sh` installs three:
+
+| When | What |
+| --- | --- |
+| every 5 min | drain the job queue — `$wgJobRunRate = 0`, so nothing else does |
+| Sundays 04:23 | sync |
+| Sundays 05:47 | purge, including orphaned dependencies |

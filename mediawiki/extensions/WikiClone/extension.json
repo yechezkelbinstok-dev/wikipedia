@@ -8,7 +8,9 @@
 		"MediaWiki": ">= 1.43.0"
 	},
 	"MessagesDirs": {
-		"WikiClone": [ "i18n" ]
+		"WikiClone": [
+			"i18n"
+		]
 	},
 	"AutoloadNamespaces": {
 		"MediaWiki\\Extension\\WikiClone\\": "includes/"
@@ -20,6 +22,7 @@
 				"MainConfig",
 				"WikiClone.TitleIndex",
 				"WikiClone.ArticleImporter",
+				"WikiClone.PageStateStore",
 				"TitleFactory"
 			]
 		},
@@ -30,7 +33,8 @@
 	"Hooks": {
 		"HtmlPageLinkRendererBegin": "main",
 		"BeforeInitialize": "main",
-		"LoadExtensionSchemaUpdates": "schema"
+		"LoadExtensionSchemaUpdates": "schema",
+		"PageDeleteComplete": "main"
 	},
 	"ServiceWiringFiles": [
 		"includes/ServiceWiring.php"
@@ -50,11 +54,17 @@
 		},
 		"WikiCloneImportNamespaces": {
 			"description": "Namespaces whose missing pages are fetched on view.",
-			"value": [ 0 ]
+			"value": [
+				0
+			]
 		},
 		"WikiCloneMaxDependencies": {
 			"description": "Cap on templates/modules pulled in for a single article, so one pathological page cannot stall a request forever.",
 			"value": 800
+		},
+		"WikiCloneStaleAfterDays": {
+			"description": "Imported articles untouched for this many days are eligible for purging. Pages carrying local edits are never purged.",
+			"value": 90
 		}
 	},
 	"manifest_version": 2

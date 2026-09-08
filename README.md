@@ -46,6 +46,7 @@ cd wikipedia
 ./scripts/02-bootstrap.sh mywiki.duckdns.org
 ./scripts/03-create-admin.sh YourName 'a-strong-password'
 ./scripts/04-import-titles.sh     # ~30-60 min, mostly unattended
+./scripts/05-install-cron.sh      # job queue, weekly sync, weekly purge
 ```
 
 DNS for the domain must already point at the server — Caddy issues the
@@ -62,7 +63,7 @@ creation is disabled. To make it world-readable, set
 - [x] Server, Docker, TLS, MediaWiki with Wikipedia's skins
 - [x] Title index import
 - [x] On-demand article fetch
-- [ ] Sync and purge
+- [x] Sync and purge
 - [ ] Main Page daily refresh
 - [ ] Branched page history
 - [ ] Wikidata-backed infobox values

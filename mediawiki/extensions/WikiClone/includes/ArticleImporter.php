@@ -11,7 +11,6 @@ use MediaWiki\Title\TitleFactory;
 use MediaWiki\User\User;
 use StatusValue;
 use Throwable;
-use Wikimedia\Rdbms\IConnectionProvider;
 use Wikimedia\Rdbms\IDBAccessObject;
 
 /**
@@ -25,12 +24,12 @@ use Wikimedia\Rdbms\IDBAccessObject;
  */
 class ArticleImporter {
 
-	private const IMPORT_USER = 'WikiClone importer';
+	public const IMPORT_USER = 'WikiClone importer';
 
 	private WikipediaApi $api;
 	private WikiPageFactory $wikiPageFactory;
 	private TitleFactory $titleFactory;
-	private IConnectionProvider $dbProvider;
+	private PageStateStore $pageState;
 	private IContentHandlerFactory $contentHandlerFactory;
 	private int $maxDependencies;
 
@@ -38,14 +37,14 @@ class ArticleImporter {
 		WikipediaApi $api,
 		WikiPageFactory $wikiPageFactory,
 		TitleFactory $titleFactory,
-		IConnectionProvider $dbProvider,
+		PageStateStore $pageState,
 		IContentHandlerFactory $contentHandlerFactory,
 		int $maxDependencies
 	) {
 		$this->api = $api;
 		$this->wikiPageFactory = $wikiPageFactory;
 		$this->titleFactory = $titleFactory;
-		$this->dbProvider = $dbProvider;
+		$this->pageState = $pageState;
 		$this->contentHandlerFactory = $contentHandlerFactory;
 		$this->maxDependencies = $maxDependencies;
 	}
@@ -68,10 +67,14 @@ class ArticleImporter {
 
 			$dependencies = $this->missingDependencies( $prefixed );
 			if ( $dependencies ) {
-				$this->saveMany( $this->api->getWikitext( $dependencies ), $user, 1 );
+				$this->saveMany(
+					$this->api->getWikitext( $dependencies ),
+					$user,
+					PageStateStore::KIND_DEPENDENCY
+				);
 			}
 
-			$this->saveMany( $articles, $user, 0 );
+			$this->saveMany( $articles, $user, PageStateStore::KIND_ARTICLE );
 
 			return StatusValue::newGood();
 		} catch ( Throwable $e ) {
@@ -136,23 +139,36 @@ class ArticleImporter {
 		}
 
 		$pageId = $title->getArticleID( IDBAccessObject::READ_LATEST );
-		if ( !$pageId ) {
-			return;
+		if ( $pageId ) {
+			$this->pageState->record( $pageId, $remoteRevId, $kind );
 		}
+	}
 
-		$now = $this->dbProvider->getPrimaryDatabase()->timestamp();
-		$this->dbProvider->getPrimaryDatabase()->newReplaceQueryBuilder()
-			->replaceInto( 'wikiclone_page' )
-			->uniqueIndexFields( [ 'wcp_page' ] )
-			->row( [
-				'wcp_page' => $pageId,
-				'wcp_remote_revid' => $remoteRevId,
-				'wcp_fetched' => $now,
-				'wcp_accessed' => $now,
-				'wcp_kind' => $kind,
-			] )
-			->caller( __METHOD__ )
-			->execute();
+	/**
+	 * Replace a page's content with the current upstream revision. Used by
+	 * sync, where the page already exists and we are moving it forward.
+	 */
+	public function refresh( Title $title, string $text, int $remoteRevId, int $kind ): void {
+		$user = $this->getImportUser();
+
+		$handler = $this->contentHandlerFactory->getContentHandler( $title->getContentModel() );
+		$updater = $this->wikiPageFactory->newFromTitle( $title )->newPageUpdater( $user );
+		$updater->setContent( SlotRecord::MAIN, $handler->unserializeContent( $text ) );
+
+		$revision = $updater->saveRevision(
+			CommentStoreComment::newUnsavedComment(
+				'Synced from en.wikipedia.org (revision ' . $remoteRevId . ')'
+			),
+			EDIT_UPDATE | EDIT_FORCE_BOT | EDIT_SUPPRESS_RC
+		);
+
+		if ( $revision ) {
+			$this->pageState->record(
+				$title->getArticleID( IDBAccessObject::READ_LATEST ),
+				$remoteRevId,
+				$kind
+			);
+		}
 	}
 
 	/**
