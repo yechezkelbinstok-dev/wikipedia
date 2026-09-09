@@ -178,17 +178,35 @@ class RefreshMainPage extends Maintenance {
 	 * anything here could import it and its one revision looks exactly like a
 	 * local edit worth protecting. Protecting it is how the front page went on
 	 * saying "MediaWiki has been installed" through every refresh.
+	 *
+	 * One revision and no import record is the test, rather than matching the
+	 * installer's wording: anyone who has actually edited the front page has
+	 * left a second revision behind, and their edit is the thing worth
+	 * protecting.
 	 */
 	private function isInstallerPlaceholder( Title $title ): bool {
-		$content = MediaWikiServices::getInstance()->getWikiPageFactory()
-			->newFromTitle( $title )->getContent();
-		if ( !$content ) {
+		$db = $this->getDB( DB_REPLICA );
+		$pageId = $title->getArticleID();
+
+		$imported = $db->newSelectQueryBuilder()
+			->select( 'wcp_page' )
+			->from( 'wikiclone_page' )
+			->where( [ 'wcp_page' => $pageId ] )
+			->caller( __METHOD__ )
+			->fetchField();
+
+		if ( $imported ) {
 			return false;
 		}
 
-		$default = wfMessage( 'mainpagetext' )->inContentLanguage()->plain();
+		$revisions = (int)$db->newSelectQueryBuilder()
+			->select( 'COUNT(*)' )
+			->from( 'revision' )
+			->where( [ 'rev_page' => $pageId ] )
+			->caller( __METHOD__ )
+			->fetchField();
 
-		return $default !== '' && str_contains( $content->serialize(), $default );
+		return $revisions === 1;
 	}
 
 	/**
