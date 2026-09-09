@@ -9,6 +9,7 @@ use MediaWiki\Revision\MutableRevisionRecord;
 use MediaWiki\Revision\SlotRecord;
 use MediaWiki\Title\Title;
 use MediaWiki\User\User;
+use Wikimedia\Rdbms\IDBAccessObject;
 
 $IP = getenv( 'MW_INSTALL_PATH' ) ?: __DIR__ . '/../../..';
 require_once "$IP/maintenance/Maintenance.php";
@@ -98,7 +99,15 @@ class ImportContributions extends Maintenance {
 				// The page has to be here before a revision of it can be.
 				if ( !$title->exists() ) {
 					$importer->import( $title );
-					if ( !$title->exists() ) {
+
+					// A Title remembers whether it existed the first time it
+					// was asked, and it was asked before the import. Without
+					// this the page is on disk and the Title still says it is
+					// not, so every page fetched during the run is reported as
+					// one that could not be fetched.
+					$title->resetArticleID( false );
+
+					if ( !$title->getArticleID( IDBAccessObject::READ_LATEST ) ) {
 						$this->output( "  could not import {$edit['title']}\n" );
 						$missing++;
 						continue;
@@ -135,7 +144,7 @@ class ImportContributions extends Maintenance {
 			->from( 'revision' )
 			->join( 'actor', null, 'actor_id = rev_actor' )
 			->where( [
-				'rev_page' => $title->getArticleID(),
+				'rev_page' => $title->getArticleID( IDBAccessObject::READ_LATEST ),
 				'actor_name' => $user->getName(),
 				'rev_timestamp' => $db->timestamp( $timestamp ),
 			] )
@@ -153,7 +162,7 @@ class ImportContributions extends Maintenance {
 			->getContentHandler( $title->getContentModel() );
 
 		$record = new MutableRevisionRecord( $title );
-		$record->setPageId( $title->getArticleID() );
+		$record->setPageId( $title->getArticleID( IDBAccessObject::READ_LATEST ) );
 		$record->setContent( SlotRecord::MAIN, $handler->unserializeContent( $revision['text'] ) );
 		$record->setUser( $user );
 		$record->setTimestamp( wfTimestamp( TS_MW, $revision['timestamp'] ) );
