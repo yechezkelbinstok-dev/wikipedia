@@ -154,7 +154,7 @@ class ImportPages extends Maintenance {
 				(int)$this->getOption( 'limit', 500 )
 			);
 			$this->output( 'Category contributed ' . count( $members ) . " titles\n" );
-			$titles = $members;
+			$titles = array_merge( $titles, $members );
 		}
 
 		if ( $this->hasOption( 'file' ) ) {
