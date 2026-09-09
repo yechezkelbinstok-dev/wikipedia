@@ -38,6 +38,8 @@ class SelfCheck extends Maintenance {
 		$this->checkWikibase();
 		$this->checkSuggestionDetail();
 		$this->checkTitleIndex();
+		$this->checkBranches();
+		$this->checkHiddenCategories();
 
 		$this->output( "\n" );
 		if ( $this->failures ) {
@@ -81,6 +83,7 @@ class SelfCheck extends Maintenance {
 			'WikiClone.WikipediaApi',
 			'WikiClone.WikidataClient',
 			'WikiClone.ArticleImporter',
+			'WikiClone.BranchStore',
 		] as $service ) {
 			$this->attempt( "service $service", static function () use ( $services, $service ) {
 				$services->getService( $service );
@@ -147,6 +150,69 @@ class SelfCheck extends Maintenance {
 			}
 
 			throw new \RuntimeException( 'none of them carried a description' );
+		} );
+	}
+
+	/**
+	 * Branches are reachable and answer for a page nobody has branched: the
+	 * fallback to live is what every unbranched page in the wiki relies on, so
+	 * a break there breaks reading, not just branching.
+	 */
+	private function checkBranches(): void {
+		$this->attempt( 'Special:Branches is registered', static function () {
+			if ( !MediaWikiServices::getInstance()->getSpecialPageFactory()->exists( 'Branches' ) ) {
+				throw new \RuntimeException( 'not registered' );
+			}
+		} );
+
+		$this->attempt( 'live answers for an unbranched page', static function () {
+			$branches = MediaWikiServices::getInstance()->getService( 'WikiClone.BranchStore' );
+			$title = \MediaWiki\Title\Title::newMainPage();
+			if ( !$title->exists() ) {
+				return;
+			}
+			$tip = $branches->tipFor( 0, $title->getArticleID() );
+			if ( $tip !== $title->getLatestRevID() ) {
+				throw new \RuntimeException(
+					"live tip $tip is not the page's latest revision " . $title->getLatestRevID()
+				);
+			}
+		} );
+	}
+
+	/**
+	 * Wikipedia hides its maintenance categories. A wiki that prints them at
+	 * the foot of every article is instantly distinguishable from the real
+	 * thing, and the flag lives on category pages that have to be fetched.
+	 */
+	private function checkHiddenCategories(): void {
+		$this->attempt( 'maintenance categories are hidden', function () {
+			// A wiki that has barely been filled yet holds too few category
+			// pages for the answer to mean anything, and failing a deploy over
+			// that would be failing it for being new.
+			$categoryPages = $this->getDB( DB_REPLICA )->newSelectQueryBuilder()
+				->select( 'COUNT(*)' )
+				->from( 'page' )
+				->where( [ 'page_namespace' => NS_CATEGORY ] )
+				->caller( __METHOD__ )
+				->fetchField();
+
+			if ( (int)$categoryPages < 100 ) {
+				return;
+			}
+
+			$hidden = $this->getDB( DB_REPLICA )->newSelectQueryBuilder()
+				->select( 'pp_page' )
+				->from( 'page_props' )
+				->where( [ 'pp_propname' => 'hiddencat' ] )
+				->caller( __METHOD__ )
+				->fetchFieldValues();
+
+			if ( count( $hidden ) < 50 ) {
+				throw new \RuntimeException(
+					count( $hidden ) . ' categories marked hidden; the sweep has not run'
+				);
+			}
 		} );
 	}
 
