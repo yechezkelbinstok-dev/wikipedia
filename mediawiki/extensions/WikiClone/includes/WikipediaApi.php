@@ -169,9 +169,9 @@ class WikipediaApi {
 	 * Fetch wikitext for up to any number of titles, batched.
 	 *
 	 * @param string[] $prefixedTitles
-	 * @return array<string,array{text:string,revid:int}> keyed by the title the
-	 *         API echoed back, which may differ from the requested one when a
-	 *         redirect or normalisation was applied
+	 * @return array<string,array{text:string,revid:int,model:?string}> keyed by
+	 *         the title the API echoed back, which may differ from the requested
+	 *         one when a redirect or normalisation was applied
 	 */
 	public function getWikitext( array $prefixedTitles ): array {
 		$result = [];
@@ -181,7 +181,7 @@ class WikipediaApi {
 				'action' => 'query',
 				'titles' => implode( '|', $chunk ),
 				'prop' => 'revisions',
-				'rvprop' => 'content|ids',
+				'rvprop' => 'content|ids|contentmodel',
 				'rvslots' => 'main',
 			] );
 
@@ -190,13 +190,20 @@ class WikipediaApi {
 					continue;
 				}
 				$revision = $page['revisions'][0];
-				$content = $revision['slots']['main']['content'] ?? null;
+				$slot = $revision['slots']['main'] ?? [];
+				$content = $slot['content'] ?? null;
 				if ( $content === null ) {
 					continue;
 				}
 				$result[$page['title']] = [
 					'text' => $content,
 					'revid' => (int)( $revision['revid'] ?? 0 ),
+					// What upstream calls this page. Guessing from the title
+					// gets stylesheets wrong: "Wikipedia:Main Page/styles.css"
+					// is sanitized-css there and would be stored as wikitext
+					// here, which TemplateStyles refuses with a red error
+					// across the front page.
+					'model' => $slot['contentmodel'] ?? null,
 				];
 			}
 		}

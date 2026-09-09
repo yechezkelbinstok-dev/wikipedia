@@ -51,6 +51,14 @@
 				"MainConfig",
 				"WikiClone.BranchStore"
 			]
+		},
+		"sitestats": {
+			"class": "MediaWiki\\Extension\\WikiClone\\SiteStatsHooks",
+			"services": [
+				"HttpRequestFactory",
+				"MainWANObjectCache",
+				"MainConfig"
+			]
 		}
 	},
 	"Hooks": {
@@ -75,7 +83,8 @@
 		"BeforePageDisplay": "branch",
 		"SkinTemplateNavigation::Universal": "branch",
 		"PageSaveComplete": "branch",
-		"PageHistoryPager::getQueryInfo": "branch"
+		"PageHistoryPager::getQueryInfo": "branch",
+		"ParserGetVariableValueSwitch": "sitestats"
 	},
 	"ServiceWiringFiles": [
 		"includes/ServiceWiring.php"
@@ -109,6 +118,10 @@
 		},
 		"WikiCloneFetchUnindexed": {
 			"description": "Try upstream even for titles absent from the index. The index is a dump snapshot, so articles created since it was taken are missing from it; this costs one request on a direct visit to such a page.",
+			"value": true
+		},
+		"WikiCloneUpstreamStatistics": {
+			"description": "Report Wikipedia's article and editor counts where a page asks how big the wiki is. The Main Page shows both, and this wiki's own numbers are the most obvious tell on it.",
 			"value": true
 		}
 	},

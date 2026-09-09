@@ -230,6 +230,17 @@ $wgFavicon = 'https://en.wikipedia.org/static/favicon/wikipedia.ico';
 $wgAppleTouchIcon = 'https://en.wikipedia.org/static/apple-touch/wikipedia.png';
 
 // ------------------------------------------------------------ TemplateStyles --
+// TemplateStyles is enabled for the Template namespace only by default, and
+// Wikipedia keeps its front page stylesheet at Wikipedia:Main Page/styles.css.
+// Outside an enabled namespace MediaWiki calls a .css page ordinary wikitext,
+// and TemplateStyles then refuses it with a red error across the page.
+$wgTemplateStylesNamespaces = [
+	NS_TEMPLATE => true,
+	NS_PROJECT => true,
+	NS_USER => true,
+	NS_HELP => true,
+];
+
 // Wikipedia's stylesheets reference Commons with protocol-relative URLs —
 // url(//upload.wikimedia.org/...) — while TemplateStyles' default allow-list is
 // anchored on https://. The sanitiser therefore rejects those declarations and

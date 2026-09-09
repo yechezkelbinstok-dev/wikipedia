@@ -80,6 +80,31 @@ class Audit extends Maintenance {
 			"today's featured article is here (" . gmdate( 'F j, Y' ) . ')',
 			$today && $today->exists()
 		);
+
+		// And then look at it. Checking the front page's wikitext and not its
+		// render is how a red TemplateStyles error sat across the top of it
+		// while this audit reported no problems at all: the render checks only
+		// ever ran on an article.
+		$this->checkRender( $title );
+
+		$this->assert(
+			'the front page shows Wikipedia\'s article count, not this wiki\'s',
+			$this->articleCount() > 1000000,
+			'shows ' . number_format( $this->articleCount() )
+		);
+	}
+
+	private function articleCount(): int {
+		$parser = MediaWikiServices::getInstance()->getParserFactory()->getInstance();
+		$options = \ParserOptions::newFromAnon();
+		$title = Title::newMainPage();
+
+		$rendered = $parser->parse( '{{NUMBEROFARTICLES:R}}', $title, $options );
+		$text = method_exists( $rendered, 'getContentHolderText' )
+			? $rendered->getContentHolderText()
+			: $rendered->getText();
+
+		return (int)preg_replace( '/\D/', '', strip_tags( $text ) );
 	}
 
 	private function checkInterfacePages(): void {
@@ -228,6 +253,16 @@ class Audit extends Maintenance {
 			return;
 		}
 
+		$this->checkRender( $title );
+	}
+
+	/**
+	 * Render a page and hold it to what a reader would notice: no error
+	 * messages, no Lua failures, no link red here that is blue on Wikipedia,
+	 * no category Wikipedia hides.
+	 */
+	private function checkRender( Title $title ): void {
+		$name = $title->getPrefixedText();
 		$page = MediaWikiServices::getInstance()->getWikiPageFactory()->newFromTitle( $title );
 		$output = $page->getParserOutput( $page->makeParserOptions( 'canonical' ) );
 		$html = method_exists( $output, 'getContentHolderText' )
@@ -235,9 +270,12 @@ class Audit extends Maintenance {
 			: $output->getText();
 
 		$this->assert( "$name: no Lua errors", !str_contains( $html, 'Lua error' ) );
+
+		$errors = $this->errorMessages( $html );
 		$this->assert(
-			"$name: no error spans",
-			!preg_match( '/class="[^"]*\berror\b/', $html )
+			"$name: no error messages",
+			!$errors,
+			$errors ? implode( ' | ', array_slice( $errors, 0, 3 ) ) : ''
 		);
 		// A broken label renders as the group's name and a number — "[lower-alpha
 		// 1]". The bare words appear in ordinary CSS too, so matching those
@@ -313,6 +351,29 @@ class Audit extends Maintenance {
 				"  note  a warm view of %s took %ss\n", $warm->getPrefixedText(), $elapsed
 			) );
 		}
+	}
+
+	/**
+	 * The error messages a reader would see, in full.
+	 *
+	 * @return string[]
+	 */
+	private function errorMessages( string $html ): array {
+		preg_match_all(
+			'/<(strong|span|div|p)[^>]*class="[^"]*\berror\b[^"]*"[^>]*>(.*?)<\/\1>/s',
+			$html,
+			$matches
+		);
+
+		$messages = [];
+		foreach ( $matches[2] ?? [] as $text ) {
+			$text = trim( preg_replace( '/\s+/', ' ', html_entity_decode( strip_tags( $text ) ) ) );
+			if ( $text !== '' ) {
+				$messages[$text] = true;
+			}
+		}
+
+		return array_keys( $messages );
 	}
 
 	/** @return string[] */

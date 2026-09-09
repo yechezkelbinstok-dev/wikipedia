@@ -257,7 +257,9 @@ class ArticleImporter {
 			if ( !$title || $title->exists() ) {
 				continue;
 			}
-			$status->merge( $this->save( $title, $page['text'], $page['revid'], $user, $kind ) );
+			$status->merge( $this->save(
+				$title, $page['text'], $page['revid'], $user, $kind, $page['model'] ?? null
+			) );
 		}
 
 		if ( $searchUpdatesDisabled !== null ) {
@@ -269,7 +271,8 @@ class ArticleImporter {
 	}
 
 	private function save(
-		Title $title, string $text, int $remoteRevId, User $user, int $kind
+		Title $title, string $text, int $remoteRevId, User $user, int $kind,
+		?string $model = null
 	): StatusValue {
 		// Existence was last checked against the link cache, before any of this
 		// import's own saves. A title can appear twice in one transclusion tree,
@@ -280,10 +283,7 @@ class ArticleImporter {
 			return StatusValue::newGood();
 		}
 
-		$handler = $this->contentHandlerFactory->getContentHandler(
-			$title->getContentModel()
-		);
-		$content = $handler->unserializeContent( $text );
+		$content = $this->makeContent( $title, $text, $model );
 
 		$updater = $this->wikiPageFactory->newFromTitle( $title )->newPageUpdater( $user );
 		$updater->setContent( SlotRecord::MAIN, $content );
@@ -412,7 +412,9 @@ class ArticleImporter {
 	 * Replace a page's content with the current upstream revision. Used by
 	 * sync, where the page already exists and we are moving it forward.
 	 */
-	public function refresh( Title $title, string $text, int $remoteRevId, int $kind ): void {
+	public function refresh(
+		Title $title, string $text, int $remoteRevId, int $kind, ?string $model = null
+	): void {
 		$user = $this->getImportUser();
 
 		// A sync replaces the page with upstream's text, which would drop the
@@ -424,9 +426,8 @@ class ArticleImporter {
 			$text = self::withHiddenMarker( $text );
 		}
 
-		$handler = $this->contentHandlerFactory->getContentHandler( $title->getContentModel() );
 		$updater = $this->wikiPageFactory->newFromTitle( $title )->newPageUpdater( $user );
-		$updater->setContent( SlotRecord::MAIN, $handler->unserializeContent( $text ) );
+		$updater->setContent( SlotRecord::MAIN, $this->makeContent( $title, $text, $model ) );
 
 		$revision = $updater->saveRevision(
 			CommentStoreComment::newUnsavedComment(
@@ -448,6 +449,38 @@ class ArticleImporter {
 			$remoteRevId,
 			$kind
 		);
+	}
+
+	/**
+	 * Build the page's content, in the model upstream keeps it in.
+	 *
+	 * Inferring the model from the title is what put "Wikipedia:Main Page/
+	 * styles.css" in the wiki as wikitext: TemplateStyles is only enabled for
+	 * a few namespaces, so MediaWiki's default for a .css page outside them is
+	 * ordinary wikitext, and TemplateStyles then refuses to use it — printing a
+	 * red error across the front page. Upstream knows what the page is; ask it.
+	 */
+	private function makeContent( Title $title, string $text, ?string $model ) {
+		$factory = $this->contentHandlerFactory;
+
+		if ( $model !== null && $model !== $title->getContentModel() ) {
+			try {
+				if ( $factory->isDefinedModel( $model ) ) {
+					return $factory->getContentHandler( $model )->unserializeContent( $text );
+				}
+			} catch ( Throwable $e ) {
+				// An upstream model this wiki does not have — fall through and
+				// store it as whatever the title says, which is what we did
+				// before asking at all.
+				wfLogWarning(
+					'WikiClone could not use upstream content model ' . $model
+					. ' for ' . $title->getPrefixedText() . ': ' . $e->getMessage()
+				);
+			}
+		}
+
+		return $factory->getContentHandler( $title->getContentModel() )
+			->unserializeContent( $text );
 	}
 
 	/**
