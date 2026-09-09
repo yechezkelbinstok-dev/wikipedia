@@ -336,3 +336,21 @@ The title index is a statement that a page exists upstream, which is what
 `isKnown()` asks. Answering it there fixes search, and as a side effect makes
 links blue through MediaWiki's own machinery rather than through the anchor
 built in `onHtmlPageLinkRendererBegin`.
+
+## Hidden categories
+
+Wikipedia marks maintenance categories — `Articles with short description`,
+`Use British English`, the CS1 ones — hidden with `__HIDDENCAT__`. That magic
+word lives on the **category page**, not on the articles in it, so a wiki that
+imports articles and templates but no `Category:` pages has no way to know
+those categories are meant to be invisible, and prints all of them at the foot
+of every article.
+
+Category pages therefore come in as dependencies, from the same `action=parse`
+call that resolves the template tree — no extra request. Articles imported
+before this can collect them without being re-imported:
+
+```bash
+docker compose exec mediawiki php extensions/WikiClone/maintenance/importPages.php \
+    --backfill "Barack Obama"
+```

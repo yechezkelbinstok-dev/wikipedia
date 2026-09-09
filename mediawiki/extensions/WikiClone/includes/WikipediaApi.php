@@ -31,26 +31,43 @@ class WikipediaApi {
 	}
 
 	/**
-	 * Every page transcluded by $prefixedTitle, flattened — action=parse
-	 * resolves the whole tree, so nested templates and the Lua modules behind
-	 * them come back in one call.
+	 * Everything $prefixedTitle needs in order to render as it does upstream.
 	 *
-	 * @return string[] prefixed titles, e.g. "Template:Infobox", "Module:Citation/CS1"
+	 * Templates come back flattened — action=parse resolves the whole tree, so
+	 * nested templates and the Lua modules behind them arrive in one call.
+	 *
+	 * Categories come from the same call because they are needed for a reason
+	 * that is not obvious: whether a category is hidden is recorded by
+	 * __HIDDENCAT__ on the category page, so without those pages MediaWiki
+	 * cannot know that "Articles with short description" and the CS1
+	 * maintenance categories are meant to be invisible, and prints the lot at
+	 * the foot of every article.
+	 *
+	 * @return string[] prefixed titles, e.g. "Template:Infobox",
+	 *         "Module:Citation/CS1", "Category:Use British English"
 	 */
-	public function getTransclusions( string $prefixedTitle ): array {
+	public function getDependencies( string $prefixedTitle ): array {
 		$data = $this->request( [
 			'action' => 'parse',
 			'page' => $prefixedTitle,
-			'prop' => 'templates',
+			'prop' => 'templates|categories',
 			'redirects' => 1,
 		] );
 
 		$titles = [];
+
 		foreach ( $data['parse']['templates'] ?? [] as $template ) {
 			if ( isset( $template['title'] ) ) {
 				$titles[] = $template['title'];
 			}
 		}
+
+		foreach ( $data['parse']['categories'] ?? [] as $category ) {
+			if ( isset( $category['category'] ) ) {
+				$titles[] = 'Category:' . strtr( $category['category'], '_', ' ' );
+			}
+		}
+
 		return $titles;
 	}
 

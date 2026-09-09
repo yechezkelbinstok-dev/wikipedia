@@ -109,7 +109,7 @@ class ArticleImporter {
 	 */
 	private function missingDependencies( string $prefixedTitle ): array {
 		$candidates = [];
-		foreach ( $this->api->getTransclusions( $prefixedTitle ) as $candidate ) {
+		foreach ( $this->api->getDependencies( $prefixedTitle ) as $candidate ) {
 			$title = $this->titleFactory->newFromText( $candidate );
 			if ( $title ) {
 				$candidates[] = $title;

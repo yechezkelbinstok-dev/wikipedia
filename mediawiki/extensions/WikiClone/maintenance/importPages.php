@@ -26,6 +26,7 @@ class ImportPages extends Maintenance {
 		$this->addDescription( 'Import specific pages from upstream.' );
 		$this->addOption( 'file', 'File of titles, one per line', false, true );
 		$this->addOption( 'force', 'Re-import even if the page already exists' );
+		$this->addOption( 'backfill', 'Keep the page but fetch any dependencies it is missing' );
 		$this->addOption( 'category', 'Import every article in this category', false, true );
 		$this->addOption( 'limit', 'Cap how many titles a category contributes', false, true );
 		$this->addOption( 'warm', 'Render each page after importing, so the first real view is served from the parser cache' );
@@ -58,6 +59,23 @@ class ImportPages extends Maintenance {
 			}
 
 			if ( $title->exists() ) {
+				if ( $this->hasOption( 'backfill' ) ) {
+					// import() saves only what is missing, so running it over an
+					// existing page collects dependencies added since — the
+					// category pages, for instance — without disturbing the
+					// article or its history.
+					$status = $importer->import( $title );
+					$stats = $status->getValue();
+					$this->output( sprintf(
+						"  backfilled %s (%s new dependencies)\n",
+						$title->getPrefixedText(),
+						is_array( $stats ) ? $stats['dependencies'] : '?'
+					) );
+					$imported++;
+					$this->waitForReplication();
+					continue;
+				}
+
 				if ( !$force ) {
 					$this->output( "  skipping {$title->getPrefixedText()} (already here)\n" );
 					continue;
