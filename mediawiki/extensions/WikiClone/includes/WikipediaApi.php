@@ -75,6 +75,50 @@ class WikipediaApi {
 	}
 
 	/**
+	 * Category pages, with the one thing we want them for.
+	 *
+	 * Wikitext and the hidden flag come from a single query rather than one
+	 * each. That halves the requests a sweep makes, which matters: asking
+	 * Wikipedia twice for every one of a thousand category pages is what gets
+	 * a client told to slow down.
+	 *
+	 * @param string[] $prefixedTitles
+	 * @return array<string,array{text:string,revid:int,hidden:bool}>
+	 */
+	public function getCategoryPages( array $prefixedTitles ): array {
+		$result = [];
+
+		foreach ( array_chunk( $prefixedTitles, self::TITLES_PER_REQUEST ) as $chunk ) {
+			$data = $this->request( [
+				'action' => 'query',
+				'titles' => implode( '|', $chunk ),
+				'prop' => 'revisions|pageprops',
+				'ppprop' => 'hiddencat',
+				'rvprop' => 'content|ids',
+				'rvslots' => 'main',
+			] );
+
+			foreach ( $data['query']['pages'] ?? [] as $page ) {
+				if ( isset( $page['missing'] ) || !isset( $page['revisions'][0] ) ) {
+					continue;
+				}
+				$revision = $page['revisions'][0];
+				$content = $revision['slots']['main']['content'] ?? null;
+				if ( $content === null ) {
+					continue;
+				}
+				$result[$page['title']] = [
+					'text' => $content,
+					'revid' => (int)( $revision['revid'] ?? 0 ),
+					'hidden' => isset( $page['pageprops']['hiddencat'] ),
+				];
+			}
+		}
+
+		return $result;
+	}
+
+	/**
 	 * Which of these categories upstream treats as hidden.
 	 *
 	 * Wikipedia sets the flag with __HIDDENCAT__, but almost never writes the

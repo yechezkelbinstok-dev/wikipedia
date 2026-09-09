@@ -302,8 +302,14 @@ class ArticleImporter {
 			}
 		}
 
-		$pages = $this->api->getWikitext( $prefixedTitles );
-		$this->markHiddenCategories( $pages );
+		$pages = [];
+		foreach ( $this->api->getCategoryPages( $prefixedTitles ) as $prefixedTitle => $page ) {
+			$pages[$prefixedTitle] = [
+				'text' => $page['hidden'] ? self::withHiddenMarker( $page['text'] ) : $page['text'],
+				'revid' => $page['revid'],
+			];
+		}
+
 		$this->saveMany( $pages, $this->getImportUser(), PageStateStore::KIND_DEPENDENCY );
 
 		$created = 0;
