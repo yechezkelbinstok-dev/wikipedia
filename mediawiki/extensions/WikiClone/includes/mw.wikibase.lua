@@ -65,6 +65,16 @@ function wikibase.getEntityObject( id )
 		return php.getAllStatements( self.id, property )
 	end
 
+	--- Formatted values for a property, with the property's own label.
+	--- Modules use this rather than walking statements themselves.
+	function entity:formatPropertyValues( property )
+		return php.formatPropertyValues( self.id, property )
+	end
+
+	function entity:formatStatements( property )
+		return php.formatPropertyValues( self.id, property )
+	end
+
 	function entity:getProperties()
 		local properties = {}
 		for property in pairs( self.claims or {} ) do
@@ -152,6 +162,51 @@ function wikibase.getEntityUrl( id )
 		return nil
 	end
 	return php.getEntityUrl( id )
+end
+
+--- Snak formatting. A snak is a single value inside a statement; these turn
+--- one into text, resolving references to other entities to their labels.
+function wikibase.renderSnak( snak )
+	if snak == nil then
+		return ''
+	end
+	return php.renderSnak( snak )
+end
+
+function wikibase.formatValue( snak )
+	return wikibase.renderSnak( snak )
+end
+
+function wikibase.renderSnaks( snaks )
+	if type( snaks ) ~= 'table' then
+		return ''
+	end
+
+	local rendered = {}
+	for _, group in pairs( snaks ) do
+		for _, snak in ipairs( group ) do
+			local text = php.renderSnak( snak )
+			if text ~= '' then
+				rendered[#rendered + 1] = text
+			end
+		end
+	end
+
+	return table.concat( rendered, ', ' )
+end
+
+function wikibase.formatValues( snaks )
+	return wikibase.renderSnaks( snaks )
+end
+
+function wikibase.formatPropertyValues( id, property )
+	if id == nil then
+		id = php.getEntityIdForCurrentPage()
+	end
+	if id == nil or property == nil then
+		return { value = '', label = '' }
+	end
+	return php.formatPropertyValues( id, property )
 end
 
 function wikibase.isValidEntityId( id )

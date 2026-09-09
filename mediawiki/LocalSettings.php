@@ -203,6 +203,11 @@ $wgLogos = [
 	],
 ];
 
+// $wgFavicon defaults to /favicon.ico, which nothing here serves — hence the
+// blank browser tab. These are the paths Wikipedia itself uses.
+$wgFavicon = 'https://en.wikipedia.org/static/favicon/wikipedia.ico';
+$wgAppleTouchIcon = 'https://en.wikipedia.org/static/apple-touch/wikipedia.png';
+
 // ------------------------------------------------------------ TemplateStyles --
 // Wikipedia's stylesheets reference Commons with protocol-relative URLs —
 // url(//upload.wikimedia.org/...) — while TemplateStyles' default allow-list is

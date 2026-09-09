@@ -26,6 +26,8 @@ class WikibaseLibrary extends LibraryBase {
 			'getAllStatements' => [ $this, 'getAllStatements' ],
 			'entityExists' => [ $this, 'entityExists' ],
 			'getEntityUrl' => [ $this, 'getEntityUrl' ],
+			'renderSnak' => [ $this, 'renderSnak' ],
+			'formatPropertyValues' => [ $this, 'formatPropertyValues' ],
 		];
 
 		return $this->getEngine()->registerInterface(
@@ -105,6 +107,19 @@ class WikibaseLibrary extends LibraryBase {
 
 	public function getEntityUrl( $id = null ): array {
 		return [ is_string( $id ) ? WikidataClient::getEntityUrl( $id ) : null ];
+	}
+
+	public function renderSnak( $snak = null ): array {
+		return [ is_array( $snak ) ? $this->client()->formatSnak( $snak ) : '' ];
+	}
+
+	public function formatPropertyValues( $id = null, $property = null ): array {
+		if ( !is_string( $id ) || !is_string( $property ) ) {
+			return [ [ 'value' => '', 'label' => '' ] ];
+		}
+		$this->incrementExpensiveFunctionCount();
+
+		return [ $this->client()->formatPropertyValues( $id, $property ) ];
 	}
 
 	/**
