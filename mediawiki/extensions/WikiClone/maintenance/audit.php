@@ -85,7 +85,9 @@ class Audit extends Maintenance {
 		// render is how a red TemplateStyles error sat across the top of it
 		// while this audit reported no problems at all: the render checks only
 		// ever ran on an article.
-		$this->checkRender( $title );
+		// The front page carries no reference list, and neither does
+		// Wikipedia's, so it is not the page to ask about citations.
+		$this->checkRender( $title, false );
 
 		$this->assert(
 			'the front page shows Wikipedia\'s article count, not this wiki\'s',
@@ -252,7 +254,7 @@ class Audit extends Maintenance {
 	 * messages, no Lua failures, no link red here that is blue on Wikipedia,
 	 * no category Wikipedia hides.
 	 */
-	private function checkRender( Title $title ): void {
+	private function checkRender( Title $title, bool $expectCitations = true ): void {
 		$name = $title->getPrefixedText();
 		$page = MediaWikiServices::getInstance()->getWikiPageFactory()->newFromTitle( $title );
 		$output = $page->getParserOutput( $page->makeParserOptions( 'canonical' ) );
@@ -279,9 +281,7 @@ class Audit extends Maintenance {
 			!$brokenLabels,
 			$brokenLabels ? "$brokenLabels labels still read as the group name" : ''
 		);
-		// A front page has no citations; only an article's reference list says
-		// anything about whether Cite is working.
-		if ( $title->getNamespace() === NS_MAIN ) {
+		if ( $expectCitations ) {
 			$this->assert(
 				"$name: citations rendered",
 				substr_count( $html, 'class="reference"' ) > 0
