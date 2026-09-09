@@ -14,6 +14,9 @@ on demand from Wikipedia's API rather than from a full dump.
 | Sync | Compare `lastrevid` in batches of 50 titles; re-fetch only what changed |
 | Purge | Evict articles untouched past a TTL. Never touches local edits |
 | Editing | Native MediaWiki editing, with local edits on their own branch of a page's history |
+| Branches | A branch is a different answer to "which revision is current". Applied as an `oldid`, MediaWiki renders, diffs and links a branch unaided. A branch diverges only for the pages edited on it |
+| Main Page | Refreshed at 00:05 UTC: today's dated subpages are new titles, so its dependencies are re-resolved, not just refetched |
+| Hidden categories | Category pages are fetched for the categories a render actually produces, since that is where `__HIDDENCAT__` lives and it is not the set upstream's parse reports |
 
 ## Layout
 
@@ -46,7 +49,7 @@ cd wikipedia
 ./scripts/02-bootstrap.sh mywiki.duckdns.org
 ./scripts/03-create-admin.sh YourName 'a-strong-password'
 ./scripts/04-import-titles.sh     # ~30-60 min, mostly unattended
-./scripts/05-install-cron.sh      # job queue, weekly sync, weekly purge
+./scripts/05-install-cron.sh      # job queue, nightly Main Page, weekly sync and purge
 ./scripts/06-import-interface.sh  # Wikipedia's CSS, tab labels, sidebar
 ./scripts/07-prewarm.sh --category "Birds of prey"   # optional, makes clicks instant
 ```
@@ -73,6 +76,29 @@ The wiki is private by default: reading requires an account, and account
 creation is disabled. To make it world-readable, set
 `$wgGroupPermissions['*']['read'] = true;` in `mediawiki/LocalSettings.php`.
 
+## Branches
+
+Every page carries a branch menu beside its tabs. `live` is the wiki as
+Wikipedia has it, which importing and syncing move forward; anything else is a
+line of edits of your own. `Special:Branches` lists them and makes new ones,
+including branches off branches.
+
+The branch being read is remembered in a cookie, so following a link keeps you
+on it; `?branch=name` on any URL switches. A branch shows its parent's revision
+for every page nobody has edited on it, so it costs rows rather than a copy of
+the wiki, and a page's history shows one branch's line rather than all of them
+interleaved.
+
+Two things are worth knowing. Editing while on a branch shows MediaWiki's usual
+notice about editing an earlier revision — the revision in question is the
+branch's current one. And the link tables (what-links-here, category
+membership) follow whichever branch wrote last, since MediaWiki keeps one set
+per page; page content itself is always the branch's.
+
+```bash
+docker compose exec -T mediawiki php extensions/WikiClone/maintenance/branchTest.php
+```
+
 ## Status
 
 - [x] Server, Docker, TLS, MediaWiki with Wikipedia's skins
@@ -80,6 +106,7 @@ creation is disabled. To make it world-readable, set
 - [x] On-demand article fetch
 - [x] Sync and purge
 - [x] Search over the title index
-- [ ] Main Page daily refresh
-- [ ] Branched page history
+- [x] Main Page daily refresh
+- [x] Branched page history
+- [x] Hidden categories
 - [x] Wikidata (mw.wikibase for Scribunto)
