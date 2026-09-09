@@ -57,7 +57,15 @@ class CheckPage extends Maintenance {
 		$this->output( str_repeat( '-', 60 ) . "\n" );
 		$this->output( sprintf( "  rendered      %s bytes in %ss\n", number_format( strlen( $html ) ), $elapsed ) );
 
-		$errors = $this->distinct( $html, '/<[^>]*class="[^"]*\berror\b[^"]*"[^>]*>(.*?)</s' );
+		// Up to the element's own closing tag, not to the first tag inside it.
+		// Most of these messages name the page they are about with a link, so
+		// stopping at the first "<" reported every TemplateStyles failure as
+		// the single word "Page".
+		$errors = $this->distinct(
+			$html,
+			'/<(strong|span|div|p)[^>]*class="[^"]*\berror\b[^"]*"[^>]*>(.{0,400}?)<\/\1>/s',
+			2
+		);
 		$this->output( sprintf( "  error spans   %d (%d distinct)\n", $errors['total'], count( $errors['distinct'] ) ) );
 
 		$lua = $this->luaErrors( $html );
@@ -204,10 +212,10 @@ class CheckPage extends Maintenance {
 		return $counts;
 	}
 
-	private function distinct( string $html, string $pattern ): array {
+	private function distinct( string $html, string $pattern, int $group = 1 ): array {
 		preg_match_all( $pattern, $html, $matches );
 		$counts = [];
-		foreach ( $matches[1] ?? [] as $text ) {
+		foreach ( $matches[$group] ?? [] as $text ) {
 			$text = trim( html_entity_decode( strip_tags( $text ) ) );
 			if ( $text !== '' ) {
 				$counts[$text] = ( $counts[$text] ?? 0 ) + 1;
