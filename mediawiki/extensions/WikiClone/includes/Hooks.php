@@ -194,6 +194,14 @@ class Hooks implements
 			return;
 		}
 
+		// A category page's own categories are not what a reader is looking at,
+		// and fetching them is how this turns into a cascade: every category
+		// page saved here would ask upstream about its own categories, and
+		// those saves would ask again. Wikipedia answers that with 429.
+		if ( $linksUpdate->getTitle()->getNamespace() === NS_CATEGORY ) {
+			return;
+		}
+
 		$categories = [];
 		foreach ( $linksUpdate->getParserOutput()->getCategoryNames() as $name ) {
 			$title = $this->titleFactory->makeTitleSafe( NS_CATEGORY, $name );
@@ -216,6 +224,10 @@ class Hooks implements
 		if ( !$absent ) {
 			return;
 		}
+
+		// One page's worth, not a backlog: the weekly sweep is where a large
+		// arrears gets cleared, at a pace that does not look like an attack.
+		$absent = array_slice( $absent, 0, 200 );
 
 		DeferredUpdates::addCallableUpdate(
 			function () use ( $absent ) {

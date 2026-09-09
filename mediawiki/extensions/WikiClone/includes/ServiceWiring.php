@@ -9,6 +9,10 @@ return [
 		return new TitleIndex( $services->getConnectionProvider() );
 	},
 
+	'WikiClone.BranchStore' => static function ( MediaWikiServices $services ): BranchStore {
+		return new BranchStore( $services->getConnectionProvider() );
+	},
+
 	'WikiClone.LocalEditDetector' => static function ( MediaWikiServices $services ): LocalEditDetector {
 		return new LocalEditDetector( $services->getRevisionLookup() );
 	},

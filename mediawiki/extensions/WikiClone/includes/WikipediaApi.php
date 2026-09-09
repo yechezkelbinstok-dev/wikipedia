@@ -15,6 +15,8 @@ use RuntimeException;
 class WikipediaApi {
 
 	private const TITLES_PER_REQUEST = 50;
+	private const RETRIES = 3;
+	private const BACKOFF_MICROSECONDS = 500000;
 
 	private HttpRequestFactory $httpRequestFactory;
 	private string $apiUrl;
@@ -277,13 +279,35 @@ class WikipediaApi {
 
 		$url = $this->apiUrl . '?' . http_build_query( $params );
 
-		$request = $this->httpRequestFactory->create( $url, [
-			'method' => 'GET',
-			'timeout' => 30,
-			'userAgent' => $this->userAgent,
-		], __METHOD__ );
+		$request = null;
+		$status = null;
 
-		$status = $request->execute();
+		// Wikimedia answers a client that asks too fast with 429, and the right
+		// response to being told to slow down is to slow down rather than to
+		// fail the import. Backing off twice is enough for the bursts a page
+		// view or a sweep produces; anything beyond that is a real problem and
+		// should be reported as one.
+		for ( $attempt = 0; $attempt < self::RETRIES; $attempt++ ) {
+			if ( $attempt > 0 ) {
+				usleep( self::BACKOFF_MICROSECONDS << ( $attempt - 1 ) );
+			}
+
+			$request = $this->httpRequestFactory->create( $url, [
+				'method' => 'GET',
+				'timeout' => 30,
+				'userAgent' => $this->userAgent,
+			], __METHOD__ );
+
+			$status = $request->execute();
+			if ( $status->isOK() ) {
+				break;
+			}
+
+			if ( !in_array( $request->getStatus(), [ 429, 503 ], true ) ) {
+				break;
+			}
+		}
+
 		if ( !$status->isOK() ) {
 			throw new RuntimeException(
 				'Upstream API request failed: ' . $status->getMessage( false, false, 'en' )->text()
