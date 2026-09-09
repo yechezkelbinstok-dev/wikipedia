@@ -5,5 +5,14 @@
 	"wikiclone-desc": "{{desc|name=WikiClone}}",
 	"wikiclone-import-missing": "Error shown when the requested title does not exist upstream. $1 is the prefixed title.",
 	"wikiclone-import-failed": "Error shown when an import fails. $1 is the underlying error message.",
-	"wikiclone-save-failed": "Error when MediaWiki refuses to save an imported page. $1 is the prefixed title, $2 the underlying reason."
+	"wikiclone-save-failed": "Error when MediaWiki refuses to save an imported page. $1 is the prefixed title, $2 the underlying reason.",
+	"branches": "{{doc-special|Branches}}",
+	"wikiclone-branch-name": "Column heading and form label for a branch's name.",
+	"wikiclone-branch-forkedfrom": "Column heading and form label for the branch a branch was forked from.",
+	"wikiclone-branch-create": "Heading and button label for the form that creates a branch.",
+	"wikiclone-branch-created": "Confirmation. $1 is the branch name.",
+	"wikiclone-branch-exists": "Error shown when the requested branch name is taken. $1 is the name.",
+	"wikiclone-branch-badname": "Error shown when a branch name contains characters that are not allowed.",
+	"wikiclone-branch-menu": "Label of the branch menu in the page tabs. $1 is the branch currently being read.",
+	"wikiclone-branch-viewing": "Notice shown while reading a branch other than live. $1 is the branch name."
 }

@@ -184,6 +184,20 @@ class BranchStore {
 	}
 
 	/**
+	 * Whether any revision of this page was written on a branch. When none was,
+	 * every revision is live and nothing needs filtering.
+	 */
+	public function hasBranchRevisions( int $pageId ): bool {
+		return (bool)$this->dbProvider->getReplicaDatabase()->newSelectQueryBuilder()
+			->select( 'wcbr_rev' )
+			->from( 'wikiclone_branch_rev' )
+			->where( [ 'wcbr_page' => $pageId ] )
+			->limit( 1 )
+			->caller( __METHOD__ )
+			->fetchField();
+	}
+
+	/**
 	 * Which branch a revision was written on. Live revisions answer 0.
 	 */
 	public function branchOfRevision( int $revId ): int {

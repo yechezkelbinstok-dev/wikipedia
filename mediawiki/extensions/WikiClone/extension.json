@@ -44,13 +44,26 @@
 		},
 		"scribunto": {
 			"class": "MediaWiki\\Extension\\WikiClone\\ScribuntoHooks"
+		},
+		"branch": {
+			"class": "MediaWiki\\Extension\\WikiClone\\BranchHooks",
+			"services": [
+				"MainConfig",
+				"WikiClone.BranchStore"
+			]
 		}
 	},
 	"Hooks": {
 		"HtmlPageLinkRendererBegin": "main",
-		"BeforeInitialize": "main",
+		"BeforeInitialize": [
+			"main",
+			"branch"
+		],
 		"LoadExtensionSchemaUpdates": "schema",
-		"PageDeleteComplete": "main",
+		"PageDeleteComplete": [
+			"main",
+			"branch"
+		],
 		"PrefixSearchBackend": "search",
 		"SearchGetNearMatch": "search",
 		"ParserFirstCallInit": "shortdesc",
@@ -58,7 +71,11 @@
 		"TitleIsAlwaysKnown": "main",
 		"LinksUpdateComplete": "main",
 		"SearchResultProvideDescription": "search",
-		"SearchResultProvideThumbnail": "search"
+		"SearchResultProvideThumbnail": "search",
+		"BeforePageDisplay": "branch",
+		"SkinTemplateNavigation::Universal": "branch",
+		"PageSaveComplete": "branch",
+		"PageHistoryPager::getQueryInfo": "branch"
 	},
 	"ServiceWiringFiles": [
 		"includes/ServiceWiring.php"
@@ -98,5 +115,13 @@
 	"manifest_version": 2,
 	"ExtensionMessagesFiles": {
 		"WikiCloneMagic": "WikiClone.i18n.magic.php"
+	},
+	"SpecialPages": {
+		"Branches": {
+			"class": "MediaWiki\\Extension\\WikiClone\\SpecialBranches",
+			"services": [
+				"WikiClone.BranchStore"
+			]
+		}
 	}
 }

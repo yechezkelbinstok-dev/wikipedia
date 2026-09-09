@@ -20,10 +20,14 @@ class MarkHiddenCategories extends Maintenance {
 
 	private const BATCH = 50;
 
+	/** Between batches, so a long sweep stays a polite one. */
+	private const PAUSE_MICROSECONDS = 300000;
+
 	public function __construct() {
 		parent::__construct();
 		$this->addDescription( 'Mark locally held category pages hidden where upstream hides them.' );
 		$this->addOption( 'dry-run', 'Report what would change without changing it' );
+		$this->addOption( 'limit', 'Category pages to fetch in this run (default 400)', false, true );
 		$this->requireExtension( 'WikiClone' );
 	}
 
@@ -109,6 +113,16 @@ class MarkHiddenCategories extends Maintenance {
 			return;
 		}
 
+		// A large arrears is worked off over successive runs rather than in one
+		// burst. Wikimedia is entitled to refuse a client that asks for a
+		// thousand pages as fast as it can, and being refused is how the last
+		// attempt ended.
+		$limit = (int)$this->getOption( 'limit', 400 );
+		if ( count( $missing ) > $limit ) {
+			$this->output( "Taking $limit of them this run.\n" );
+			$missing = array_slice( $missing, 0, $limit );
+		}
+
 		$titles = [];
 		foreach ( $missing as $dbKey ) {
 			$titles[] = Title::makeTitle( NS_CATEGORY, $dbKey )->getPrefixedText();
@@ -118,6 +132,7 @@ class MarkHiddenCategories extends Maintenance {
 		foreach ( array_chunk( $titles, self::BATCH ) as $chunk ) {
 			$created += $importer->importCategoryPages( $chunk );
 			$this->waitForReplication();
+			usleep( self::PAUSE_MICROSECONDS );
 		}
 
 		$this->output( "Fetched $created of them.\n" );

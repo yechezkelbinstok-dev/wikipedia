@@ -15,8 +15,9 @@ use RuntimeException;
 class WikipediaApi {
 
 	private const TITLES_PER_REQUEST = 50;
-	private const RETRIES = 3;
-	private const BACKOFF_MICROSECONDS = 500000;
+	private const RETRIES = 4;
+	private const BACKOFF_SECONDS = 2;
+	private const MAX_BACKOFF_SECONDS = 30;
 
 	private HttpRequestFactory $httpRequestFactory;
 	private string $apiUrl;
@@ -284,12 +285,13 @@ class WikipediaApi {
 
 		// Wikimedia answers a client that asks too fast with 429, and the right
 		// response to being told to slow down is to slow down rather than to
-		// fail the import. Backing off twice is enough for the bursts a page
-		// view or a sweep produces; anything beyond that is a real problem and
-		// should be reported as one.
+		// fail the import. When it says how long to wait, wait that long;
+		// otherwise back off further each time.
+		$wait = 0;
+
 		for ( $attempt = 0; $attempt < self::RETRIES; $attempt++ ) {
-			if ( $attempt > 0 ) {
-				usleep( self::BACKOFF_MICROSECONDS << ( $attempt - 1 ) );
+			if ( $wait > 0 ) {
+				sleep( min( $wait, self::MAX_BACKOFF_SECONDS ) );
 			}
 
 			$request = $this->httpRequestFactory->create( $url, [
@@ -306,6 +308,11 @@ class WikipediaApi {
 			if ( !in_array( $request->getStatus(), [ 429, 503 ], true ) ) {
 				break;
 			}
+
+			$retryAfter = (int)$request->getResponseHeader( 'Retry-After' );
+			$wait = $retryAfter > 0
+				? $retryAfter
+				: self::BACKOFF_SECONDS << $attempt;
 		}
 
 		if ( !$status->isOK() ) {
