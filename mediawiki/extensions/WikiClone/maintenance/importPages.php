@@ -27,6 +27,7 @@ class ImportPages extends Maintenance {
 		$this->addOption( 'file', 'File of titles, one per line', false, true );
 		$this->addOption( 'force', 'Re-import even if the page already exists' );
 		$this->addOption( 'backfill', 'Keep the page but fetch any dependencies it is missing' );
+		$this->addOption( 'backfill-all', 'Backfill every article imported so far' );
 		$this->addOption( 'category', 'Import every article in this category', false, true );
 		$this->addOption( 'limit', 'Cap how many titles a category contributes', false, true );
 		$this->addOption( 'warm', 'Render each page after importing, so the first real view is served from the parser cache' );
@@ -59,7 +60,7 @@ class ImportPages extends Maintenance {
 			}
 
 			if ( $title->exists() ) {
-				if ( $this->hasOption( 'backfill' ) ) {
+				if ( $this->hasOption( 'backfill' ) || $this->hasOption( 'backfill-all' ) ) {
 					// import() saves only what is missing, so running it over an
 					// existing page collects dependencies added since — the
 					// category pages, for instance — without disturbing the
@@ -129,6 +130,22 @@ class ImportPages extends Maintenance {
 	/** @return string[] */
 	private function collectTitles(): array {
 		$titles = [];
+
+		if ( $this->hasOption( 'backfill-all' ) ) {
+			$rows = $this->getDB( DB_REPLICA )->newSelectQueryBuilder()
+				->select( [ 'page_namespace', 'page_title' ] )
+				->from( 'wikiclone_page' )
+				->join( 'page', null, 'page_id = wcp_page' )
+				->where( [ 'wcp_kind' => 0 ] )
+				->caller( __METHOD__ )
+				->fetchResultSet();
+
+			foreach ( $rows as $row ) {
+				$titles[] = Title::makeTitle( $row->page_namespace, $row->page_title )->getPrefixedText();
+			}
+
+			$this->output( 'Backfilling ' . count( $titles ) . " imported articles\n" );
+		}
 
 		if ( $this->hasOption( 'category' ) ) {
 			$api = MediaWikiServices::getInstance()->getService( 'WikiClone.WikipediaApi' );
