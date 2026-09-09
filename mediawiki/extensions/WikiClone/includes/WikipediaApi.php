@@ -396,6 +396,21 @@ class WikipediaApi {
 	}
 
 	/**
+	 * How big Wikipedia is: articles, pages, edits, users, active users.
+	 *
+	 * @return array<string,int>
+	 */
+	public function getSiteStatistics(): array {
+		$data = $this->request( [
+			'action' => 'query',
+			'meta' => 'siteinfo',
+			'siprop' => 'statistics',
+		] );
+
+		return $data['query']['statistics'] ?? [];
+	}
+
+	/**
 	 * The upstream interwiki map: which prefixes exist and where they point.
 	 *
 	 * @return array[] entries as the API returns them

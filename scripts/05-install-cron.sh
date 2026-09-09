@@ -23,7 +23,8 @@ MW="cd $REPO && docker compose exec -T mediawiki php"
 NEW=$(cat <<CRON
 $MARKER
 */5 * * * * $MW maintenance/run.php runJobs --maxjobs 200 >> $LOGS/jobs.log 2>&1
-5 0 * * * $MW extensions/WikiClone/maintenance/refreshMainPage.php >> $LOGS/mainpage.log 2>&1
+5 0 * * * $MW extensions/WikiClone/maintenance/syncSiteStats.php >> $LOGS/mainpage.log 2>&1
+9 0 * * * $MW extensions/WikiClone/maintenance/refreshMainPage.php >> $LOGS/mainpage.log 2>&1
 23 4 * * 0 $MW extensions/WikiClone/maintenance/syncArticles.php >> $LOGS/sync.log 2>&1
 41 4 * * 0 $MW extensions/WikiClone/maintenance/markHiddenCategories.php >> $LOGS/sync.log 2>&1
 47 5 * * 0 $MW extensions/WikiClone/maintenance/purgeStale.php --dependencies >> $LOGS/purge.log 2>&1

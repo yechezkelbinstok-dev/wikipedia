@@ -95,16 +95,7 @@ class Audit extends Maintenance {
 	}
 
 	private function articleCount(): int {
-		$parser = MediaWikiServices::getInstance()->getParserFactory()->getInstance();
-		$options = \ParserOptions::newFromAnon();
-		$title = Title::newMainPage();
-
-		$rendered = $parser->parse( '{{NUMBEROFARTICLES:R}}', $title, $options );
-		$text = method_exists( $rendered, 'getContentHolderText' )
-			? $rendered->getContentHolderText()
-			: $rendered->getText();
-
-		return (int)preg_replace( '/\D/', '', strip_tags( $text ) );
+		return (int)\SiteStats::articles();
 	}
 
 	private function checkInterfacePages(): void {
@@ -288,7 +279,14 @@ class Audit extends Maintenance {
 			!$brokenLabels,
 			$brokenLabels ? "$brokenLabels labels still read as the group name" : ''
 		);
-		$this->assert( "$name: citations rendered", substr_count( $html, 'class="reference"' ) > 0 );
+		// A front page has no citations; only an article's reference list says
+		// anything about whether Cite is working.
+		if ( $title->getNamespace() === NS_MAIN ) {
+			$this->assert(
+				"$name: citations rendered",
+				substr_count( $html, 'class="reference"' ) > 0
+			);
+		}
 
 		$red = $this->redLinks( $html );
 		if ( $red ) {

@@ -51,14 +51,6 @@
 				"MainConfig",
 				"WikiClone.BranchStore"
 			]
-		},
-		"sitestats": {
-			"class": "MediaWiki\\Extension\\WikiClone\\SiteStatsHooks",
-			"services": [
-				"HttpRequestFactory",
-				"MainWANObjectCache",
-				"MainConfig"
-			]
 		}
 	},
 	"Hooks": {
@@ -83,8 +75,7 @@
 		"BeforePageDisplay": "branch",
 		"SkinTemplateNavigation::Universal": "branch",
 		"PageSaveComplete": "branch",
-		"PageHistoryPager::getQueryInfo": "branch",
-		"ParserGetVariableValueSwitch": "sitestats"
+		"PageHistoryPager::getQueryInfo": "branch"
 	},
 	"ServiceWiringFiles": [
 		"includes/ServiceWiring.php"
@@ -121,7 +112,7 @@
 			"value": true
 		},
 		"WikiCloneUpstreamStatistics": {
-			"description": "Report Wikipedia's article and editor counts where a page asks how big the wiki is. The Main Page shows both, and this wiki's own numbers are the most obvious tell on it.",
+			"description": "Keep this wiki's recorded statistics — articles, editors, edits — equal to Wikipedia's, so the front page reports what Wikipedia's reports. Refreshed daily by syncSiteStats.php.",
 			"value": true
 		}
 	},
