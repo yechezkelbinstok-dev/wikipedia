@@ -153,4 +153,30 @@ class Hooks implements
 	) {
 		$this->pageState->forget( $pageID );
 	}
+
+	/**
+	 * Treat an indexed title as one MediaWiki knows about.
+	 *
+	 * Search results are filtered through Title::isKnown(), so suggestions for
+	 * articles we have not fetched were being generated and then thrown away —
+	 * the search box could only ever offer the handful of pages already held.
+	 * The title index is precisely a statement that these pages exist, so this
+	 * is what it means.
+	 *
+	 * It also makes links to them blue through MediaWiki's own machinery
+	 * rather than through the anchor built in onHtmlPageLinkRendererBegin,
+	 * which now only has to handle what this cannot reach.
+	 *
+	 * @param Title $title
+	 * @param bool &$isKnown
+	 */
+	public function onTitleIsAlwaysKnown( $title, &$isKnown ) {
+		if ( !$this->config->get( 'WikiCloneEnabled' ) || !$title->canExist() ) {
+			return;
+		}
+
+		if ( $this->titleIndex->exists( $title->getNamespace(), $title->getDBkey() ) ) {
+			$isKnown = true;
+		}
+	}
 }

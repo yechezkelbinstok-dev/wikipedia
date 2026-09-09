@@ -320,3 +320,15 @@ when something tries to construct it — search was broken that way from the day
 it was written, because the class could not load, so neither of its hooks ever
 ran while the rest of the wiki carried on looking healthy. Every check here is
 something that has actually broken.
+
+## Why `TitleIsAlwaysKnown`
+
+MediaWiki filters completion-search results through `Title::isKnown()`, so
+suggestions for articles the wiki has not fetched were being generated and then
+discarded — the search box could only ever offer the handful of pages already
+held, however many millions the index contained.
+
+The title index is a statement that a page exists upstream, which is what
+`isKnown()` asks. Answering it there fixes search, and as a side effect makes
+links blue through MediaWiki's own machinery rather than through the anchor
+built in `onHtmlPageLinkRendererBegin`.
