@@ -13,7 +13,8 @@ on demand from Wikipedia's API rather than from a full dump.
 | Images | Never stored — `$wgUseInstantCommons` resolves them from Commons on demand |
 | Sync | Compare `lastrevid` in batches of 50 titles; re-fetch only what changed |
 | Purge | Evict articles untouched past a TTL. Never touches local edits |
-| Editing | Native MediaWiki editing, with local edits on their own branch of a page's history |
+| Editing | Native MediaWiki editing. An edit forks automatically: live stays Wikipedia's, your version is yours |
+| Contributions | `importContributions.php` copies an account's Wikipedia edit history in as real revisions, so Special:Contributions is not empty |
 | Branches | A branch is a different answer to "which revision is current". Applied as an `oldid`, MediaWiki renders, diffs and links a branch unaided. A branch diverges only for the pages edited on it |
 | Main Page | Refreshed at 00:05 UTC: today's dated subpages are new titles, so its dependencies are re-resolved, not just refetched |
 | Hidden categories | Category pages are fetched for the categories a render actually produces, since that is where `__HIDDENCAT__` lives and it is not the set upstream's parse reports |
@@ -78,16 +79,20 @@ creation is disabled. To make it world-readable, set
 
 ## Branches
 
-Every page carries a branch menu beside its tabs. `live` is the wiki as
-Wikipedia has it, which importing and syncing move forward; anything else is a
-line of edits of your own. `Special:Branches` lists them and makes new ones,
-including branches off branches.
+Editing is what creates a branch — there is nothing to set up. `live` is the
+wiki as Wikipedia has it, which importing and syncing keep moving forward. The
+moment you change a page, your version of it becomes yours, on a branch named
+after you, and you are reading that branch from then on. Sync goes on updating
+live underneath; your edit stays where you left it.
 
-The branch being read is remembered in a cookie, so following a link keeps you
-on it; `?branch=name` on any URL switches. A branch shows its parent's revision
-for every page nobody has edited on it, so it costs rows rather than a copy of
-the wiki, and a page's history shows one branch's line rather than all of them
-interleaved.
+A menu beside the page tabs switches between them, and `?branch=name` on any
+URL does the same. The branch being read is remembered in a cookie, so
+following an ordinary link keeps you on it. `Special:Branches` lists what
+exists and makes further branches, including branches off branches.
+
+A branch shows its parent's revision for every page nobody has edited on it, so
+it costs rows rather than a copy of the wiki, and a page's history shows one
+branch's line rather than all of them interleaved.
 
 Two things are worth knowing. Editing while on a branch shows MediaWiki's usual
 notice about editing an earlier revision — the revision in question is the

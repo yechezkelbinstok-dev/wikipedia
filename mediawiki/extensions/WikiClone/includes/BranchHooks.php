@@ -3,6 +3,7 @@
 namespace MediaWiki\Extension\WikiClone;
 
 use MediaWiki\Config\Config;
+use MediaWiki\Context\RequestContext;
 use MediaWiki\Hook\BeforeInitializeHook;
 use MediaWiki\Hook\BeforePageDisplayHook;
 use MediaWiki\Hook\PageHistoryPager__getQueryInfoHook;
@@ -163,12 +164,28 @@ class BranchHooks implements
 	public function onPageSaveComplete(
 		$wikiPage, $user, $summary, $flags, $revisionRecord, $editResult
 	) {
-		if ( self::$active === BranchStore::LIVE ) {
-			return;
+		$branch = self::$active;
+
+		if ( $branch === BranchStore::LIVE ) {
+			// An edit made while reading live is what creates a branch. Live is
+			// Wikipedia's copy and stays Wikipedia's: importing and syncing
+			// move it forward, and a person's change to a page belongs to them,
+			// on a branch of their own, without their having to set one up
+			// first.
+			if ( !$user->isRegistered() || $user->getName() === ArticleImporter::IMPORT_USER ) {
+				return;
+			}
+
+			$branch = $this->branches->personalBranchFor( $user );
+
+			// And they should now be reading it. Saving an edit and then being
+			// shown the version without it would be baffling.
+			self::$active = $branch;
+			$this->rememberBranch( $this->branches->nameOf( $branch ) );
 		}
 
 		$this->branches->recordRevision(
-			self::$active,
+			$branch,
 			$wikiPage->getId(),
 			$revisionRecord->getId()
 		);
@@ -222,11 +239,7 @@ class BranchHooks implements
 		if ( $asked !== null ) {
 			$branch = $this->branchIdByName( $asked );
 			if ( $branch !== null ) {
-				$request->response()->setCookie(
-					self::COOKIE,
-					$branch === BranchStore::LIVE ? '' : $asked,
-					$branch === BranchStore::LIVE ? time() - 3600 : 0
-				);
+				$this->rememberBranch( $asked );
 				return $branch;
 			}
 		}
@@ -237,6 +250,20 @@ class BranchHooks implements
 		}
 
 		return BranchStore::LIVE;
+	}
+
+	/**
+	 * Remember which branch is being read, so following an ordinary link stays
+	 * on it rather than every URL having to carry the name.
+	 */
+	private function rememberBranch( string $name ): void {
+		$live = strcasecmp( $name, BranchStore::LIVE_NAME ) === 0;
+
+		RequestContext::getMain()->getRequest()->response()->setCookie(
+			self::COOKIE,
+			$live ? '' : $name,
+			$live ? time() - 3600 : 0
+		);
 	}
 
 	private function branchIdByName( string $name ): ?int {

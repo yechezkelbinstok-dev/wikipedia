@@ -102,6 +102,24 @@ class BranchStore {
 	}
 
 	/**
+	 * The branch an edit by this person belongs on, made if it is not there yet.
+	 *
+	 * Editing is what creates a branch. Nobody should have to set one up first:
+	 * the live wiki is Wikipedia's and stays Wikipedia's, and the moment you
+	 * change a page your version of it becomes yours, on a branch of your own.
+	 */
+	public function personalBranchFor( UserIdentity $user ): int {
+		$name = $user->getName();
+
+		$existing = $this->getByName( $name );
+		if ( $existing ) {
+			return $existing['id'];
+		}
+
+		return $this->create( $name, self::LIVE, $user );
+	}
+
+	/**
 	 * The revision a branch shows for a page.
 	 *
 	 * Falls back through the branch's ancestry to live, so a page nobody has
@@ -162,7 +180,10 @@ class BranchStore {
 			->from( 'revision' )
 			->leftJoin( 'wikiclone_revision_branch', null, 'wcrb_rev = rev_id' )
 			->where( [ 'rev_page' => $pageId, 'wcrb_rev' => null ] )
-			->orderBy( 'rev_id' )
+			// By time, not by id. A revision imported from someone's Wikipedia
+			// history is written now but happened years ago, and ordering by
+			// id would make it the newest thing on the page.
+			->orderBy( [ 'rev_timestamp', 'rev_id' ] )
 			->caller( __METHOD__ )
 			->fetchFieldValues();
 
@@ -175,7 +196,7 @@ class BranchStore {
 			->from( 'revision' )
 			->leftJoin( 'wikiclone_revision_branch', null, 'wcrb_rev = rev_id' )
 			->where( [ 'rev_page' => $pageId, 'wcrb_rev' => null ] )
-			->orderBy( 'rev_id', 'DESC' )
+			->orderBy( [ 'rev_timestamp', 'rev_id' ], 'DESC' )
 			->limit( 1 )
 			->caller( __METHOD__ )
 			->fetchField();

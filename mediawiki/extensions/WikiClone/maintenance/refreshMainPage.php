@@ -36,6 +36,7 @@ class RefreshMainPage extends Maintenance {
 		$this->addDescription( "Refetch the Main Page and everything it shows today." );
 		$this->addOption( 'title', 'Page to refresh (default: Main Page)', false, true );
 		$this->addOption( 'dry-run', 'Report what would change without writing' );
+		$this->addOption( 'force', 'Overwrite even a page that carries local edits' );
 		$this->requireExtension( 'WikiClone' );
 	}
 
@@ -125,7 +126,10 @@ class RefreshMainPage extends Maintenance {
 				) {
 					continue;
 				}
-				if ( $localEdits->hasLocalEdits( $held[$prefixedTitle] ) ) {
+				if ( !$this->hasOption( 'force' )
+					&& $localEdits->hasLocalEdits( $held[$prefixedTitle] )
+					&& !$this->isInstallerPlaceholder( $held[$prefixedTitle] )
+				) {
 					$this->output( "  skipping $prefixedTitle (has local edits)\n" );
 					continue;
 				}
@@ -164,6 +168,27 @@ class RefreshMainPage extends Maintenance {
 		}
 
 		return $changed;
+	}
+
+	/**
+	 * Whether this is the page the installer wrote, rather than one somebody
+	 * chose to write.
+	 *
+	 * MediaWiki creates the Main Page at install time, so it exists before
+	 * anything here could import it and its one revision looks exactly like a
+	 * local edit worth protecting. Protecting it is how the front page went on
+	 * saying "MediaWiki has been installed" through every refresh.
+	 */
+	private function isInstallerPlaceholder( Title $title ): bool {
+		$content = MediaWikiServices::getInstance()->getWikiPageFactory()
+			->newFromTitle( $title )->getContent();
+		if ( !$content ) {
+			return false;
+		}
+
+		$default = wfMessage( 'mainpagetext' )->inContentLanguage()->plain();
+
+		return $default !== '' && str_contains( $content->serialize(), $default );
 	}
 
 	/**

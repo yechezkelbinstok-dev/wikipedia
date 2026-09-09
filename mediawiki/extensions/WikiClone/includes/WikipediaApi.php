@@ -272,6 +272,85 @@ class WikipediaApi {
 	}
 
 	/**
+	 * Everything a named account has edited upstream, oldest first.
+	 *
+	 * @return array<int,array{revid:int,title:string,timestamp:string,comment:string}>
+	 */
+	public function getUserContributions( string $user, int $limit = 1000 ): array {
+		$contributions = [];
+		$continue = [];
+
+		do {
+			$data = $this->request( [
+				'action' => 'query',
+				'list' => 'usercontribs',
+				'ucuser' => $user,
+				'uclimit' => 'max',
+				'ucdir' => 'newer',
+				'ucprop' => 'ids|title|timestamp|comment',
+			] + $continue );
+
+			foreach ( $data['query']['usercontribs'] ?? [] as $edit ) {
+				if ( !isset( $edit['revid'], $edit['title'] ) ) {
+					continue;
+				}
+				$contributions[] = [
+					'revid' => (int)$edit['revid'],
+					'title' => $edit['title'],
+					'timestamp' => $edit['timestamp'] ?? '',
+					'comment' => $edit['comment'] ?? '',
+				];
+				if ( count( $contributions ) >= $limit ) {
+					return $contributions;
+				}
+			}
+
+			$continue = $data['continue'] ?? [];
+		} while ( $continue );
+
+		return $contributions;
+	}
+
+	/**
+	 * The content of specific revisions, by id.
+	 *
+	 * @param int[] $revIds
+	 * @return array<int,array{title:string,text:string,timestamp:string,comment:string,user:string}>
+	 *         keyed by revision id
+	 */
+	public function getRevisionsById( array $revIds ): array {
+		$result = [];
+
+		foreach ( array_chunk( $revIds, self::TITLES_PER_REQUEST ) as $chunk ) {
+			$data = $this->request( [
+				'action' => 'query',
+				'revids' => implode( '|', $chunk ),
+				'prop' => 'revisions',
+				'rvprop' => 'content|ids|timestamp|comment|user',
+				'rvslots' => 'main',
+			] );
+
+			foreach ( $data['query']['pages'] ?? [] as $page ) {
+				foreach ( $page['revisions'] ?? [] as $revision ) {
+					$content = $revision['slots']['main']['content'] ?? null;
+					if ( $content === null || !isset( $revision['revid'] ) ) {
+						continue;
+					}
+					$result[(int)$revision['revid']] = [
+						'title' => $page['title'] ?? '',
+						'text' => $content,
+						'timestamp' => $revision['timestamp'] ?? '',
+						'comment' => $revision['comment'] ?? '',
+						'user' => $revision['user'] ?? '',
+					];
+				}
+			}
+		}
+
+		return $result;
+	}
+
+	/**
 	 * The templates Wikipedia transcludes most, most-used first.
 	 *
 	 * Worth having before anyone asks for them. The slow part of a cold page
