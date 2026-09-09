@@ -33,6 +33,8 @@ class MarkHiddenCategories extends Maintenance {
 		$importer = $services->getService( 'WikiClone.ArticleImporter' );
 		$dryRun = $this->hasOption( 'dry-run' );
 
+		$this->fetchCategoriesInUse( $importer, $dryRun );
+
 		$rows = $this->getDB( DB_REPLICA )->newSelectQueryBuilder()
 			->select( 'page_title' )
 			->from( 'page' )
@@ -74,6 +76,51 @@ class MarkHiddenCategories extends Maintenance {
 		}
 
 		$this->output( "Hidden upstream: $hidden. Changed here: $marked.\n" );
+	}
+	/**
+	 * Create the category pages that are in use here but were never fetched.
+	 *
+	 * A page cannot be marked hidden if it does not exist, and a good many of
+	 * the categories an article lands in never appear in upstream's own parse
+	 * of it: they are added by our render rather than Wikipedia's — the CS1
+	 * maintenance categories a slightly different module version produces, the
+	 * "Pages with broken file links" a missing file produces — so the
+	 * transclusion tree does not name them and nothing has fetched them.
+	 *
+	 * Taking them from categorylinks instead catches exactly the categories a
+	 * reader here would see, which is the set that matters.
+	 */
+	private function fetchCategoriesInUse( $importer, bool $dryRun ): void {
+		$missing = $this->getDB( DB_REPLICA )->newSelectQueryBuilder()
+			->select( 'cl_to' )
+			->distinct()
+			->from( 'categorylinks' )
+			->leftJoin( 'page', null, [
+				'page_namespace' => NS_CATEGORY,
+				'page_title = cl_to',
+			] )
+			->where( [ 'page_id' => null ] )
+			->caller( __METHOD__ )
+			->fetchFieldValues();
+
+		$this->output( 'Categories in use with no page here: ' . count( $missing ) . "\n" );
+
+		if ( !$missing || $dryRun ) {
+			return;
+		}
+
+		$titles = [];
+		foreach ( $missing as $dbKey ) {
+			$titles[] = Title::makeTitle( NS_CATEGORY, $dbKey )->getPrefixedText();
+		}
+
+		$created = 0;
+		foreach ( array_chunk( $titles, self::BATCH ) as $chunk ) {
+			$created += $importer->importCategoryPages( $chunk );
+			$this->waitForReplication();
+		}
+
+		$this->output( "Fetched $created of them.\n" );
 	}
 }
 

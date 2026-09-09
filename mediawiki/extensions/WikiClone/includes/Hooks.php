@@ -8,6 +8,7 @@ use MediaWiki\Hook\BeforeInitializeHook;
 use MediaWiki\Deferred\DeferredUpdates;
 use MediaWiki\Html\Html;
 use MediaWiki\Linker\Hook\HtmlPageLinkRendererBeginHook;
+use MediaWiki\Hook\LinksUpdateCompleteHook;
 use MediaWiki\Page\Hook\PageDeleteCompleteHook;
 use MediaWiki\Status\Status;
 use MediaWiki\Title\Title;
@@ -16,8 +17,12 @@ use MediaWiki\Title\TitleFactory;
 class Hooks implements
 	HtmlPageLinkRendererBeginHook,
 	BeforeInitializeHook,
+	LinksUpdateCompleteHook,
 	PageDeleteCompleteHook
 {
+
+	/** Guards against a category page's own save re-entering this. */
+	private static bool $fetchingCategories = false;
 
 	private Config $config;
 	private TitleIndex $titleIndex;
@@ -170,6 +175,66 @@ class Hooks implements
 	 * @param Title $title
 	 * @param bool &$isKnown
 	 */
+	/**
+	 * Fetch the category pages a page just turned out to be in.
+	 *
+	 * Which categories a page lands in is only known once it has been rendered
+	 * here, and it is not the same set upstream's parse of it reports: our
+	 * render adds its own — the CS1 maintenance categories, "Pages with broken
+	 * file links" — which nothing in the transclusion tree names. Those pages
+	 * are what carries the hidden flag, so without them a reader gets a footer
+	 * full of maintenance categories Wikipedia never shows.
+	 *
+	 * It runs after the response has gone out, so nobody waits on it.
+	 *
+	 * @inheritDoc
+	 */
+	public function onLinksUpdateComplete( $linksUpdate, $ticket ) {
+		if ( !$this->config->get( 'WikiCloneEnabled' ) || self::$fetchingCategories ) {
+			return;
+		}
+
+		$categories = [];
+		foreach ( $linksUpdate->getParserOutput()->getCategoryNames() as $name ) {
+			$title = $this->titleFactory->makeTitleSafe( NS_CATEGORY, $name );
+			if ( $title ) {
+				$categories[] = $title;
+			}
+		}
+
+		if ( !$categories ) {
+			return;
+		}
+
+		$absent = [];
+		foreach ( $categories as $title ) {
+			if ( !$title->exists() ) {
+				$absent[] = $title->getPrefixedText();
+			}
+		}
+
+		if ( !$absent ) {
+			return;
+		}
+
+		DeferredUpdates::addCallableUpdate(
+			function () use ( $absent ) {
+				if ( self::$fetchingCategories ) {
+					return;
+				}
+				self::$fetchingCategories = true;
+				try {
+					$this->importer->importCategoryPages( $absent );
+				} catch ( \Throwable $e ) {
+					wfLogWarning( 'WikiClone could not fetch category pages: ' . $e->getMessage() );
+				} finally {
+					self::$fetchingCategories = false;
+				}
+			},
+			DeferredUpdates::POSTSEND
+		);
+	}
+
 	public function onTitleIsAlwaysKnown( $title, &$isKnown ) {
 		if ( !$this->config->get( 'WikiCloneEnabled' ) || !$title->canExist() ) {
 			return;

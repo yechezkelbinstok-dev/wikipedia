@@ -278,6 +278,46 @@ class ArticleImporter {
 	}
 
 	/**
+	 * Fetch category pages without resolving what they transclude.
+	 *
+	 * A category page is needed here for one reason — it is where the hidden
+	 * flag lives — and pulling the template tree behind each of several
+	 * hundred of them to get that would cost far more than it is worth. The
+	 * page arrives with upstream's wikitext, so it is right the moment its
+	 * templates turn up through some other article.
+	 *
+	 * @param string[] $prefixedTitles
+	 * @return int how many were created
+	 */
+	public function importCategoryPages( array $prefixedTitles ): int {
+		if ( !$prefixedTitles ) {
+			return 0;
+		}
+
+		$before = 0;
+		foreach ( $prefixedTitles as $prefixedTitle ) {
+			$title = $this->titleFactory->newFromText( $prefixedTitle );
+			if ( $title && $title->exists() ) {
+				$before++;
+			}
+		}
+
+		$pages = $this->api->getWikitext( $prefixedTitles );
+		$this->markHiddenCategories( $pages );
+		$this->saveMany( $pages, $this->getImportUser(), PageStateStore::KIND_DEPENDENCY );
+
+		$created = 0;
+		foreach ( array_keys( $pages ) as $prefixedTitle ) {
+			$title = $this->titleFactory->newFromText( $prefixedTitle );
+			if ( $title && $title->getArticleID( IDBAccessObject::READ_LATEST ) ) {
+				$created++;
+			}
+		}
+
+		return max( 0, $created - $before );
+	}
+
+	/**
 	 * Put __HIDDENCAT__ on a category page we already hold.
 	 *
 	 * The repair path for categories imported before we knew to ask: see
