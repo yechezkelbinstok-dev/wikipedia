@@ -114,7 +114,15 @@ class RefreshMainPage extends Maintenance {
 		foreach ( array_chunk( array_keys( $held ), 50 ) as $chunk ) {
 			$stale = [];
 			foreach ( $api->getLastRevisionIds( $chunk ) as $prefixedTitle => $remoteRevId ) {
-				if ( !isset( $known[$prefixedTitle] ) || $known[$prefixedTitle]['revid'] === $remoteRevId ) {
+				// A page with no import record is not a page to leave alone —
+				// it is a page we have never fetched. The Main Page is exactly
+				// that: MediaWiki creates it at install time, so it existed
+				// before anything here could import it, and "skip what we do
+				// not have a record of" left the wiki's front page reading
+				// "MediaWiki has been installed."
+				if ( isset( $known[$prefixedTitle] )
+					&& $known[$prefixedTitle]['revid'] === $remoteRevId
+				) {
 					continue;
 				}
 				if ( $localEdits->hasLocalEdits( $held[$prefixedTitle] ) ) {
@@ -144,7 +152,9 @@ class RefreshMainPage extends Maintenance {
 					$held[$prefixedTitle],
 					$page['text'],
 					$page['revid'],
-					$known[$prefixedTitle]['kind']
+					$known[$prefixedTitle]['kind'] ?? (
+						$held[$prefixedTitle]->equals( $title ) ? 0 : 1
+					)
 				);
 				$this->output( "  synced $prefixedTitle\n" );
 				$changed++;

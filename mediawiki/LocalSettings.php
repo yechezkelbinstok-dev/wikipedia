@@ -50,6 +50,23 @@ $wgSessionCacheType = CACHE_DB;      // survives container restarts
 $wgParserCacheType  = CACHE_DB;      // rendered articles are expensive; keep them
 $wgMemCachedServers = [];
 
+// A parse of a long article costs tens of seconds here, so a cached one is
+// worth keeping for a long time. The default throws them away far sooner than
+// the articles change.
+$wgParserCacheExpireTime = 180 * 24 * 3600;
+
+// ------------------------------------------------------------------ sessions --
+// MediaWiki's default session lifetime is an hour, so a wiki you visit twice a
+// day logs you out every time even though the login cookie itself lasts a
+// month. Sessions live in the database here, so keeping them is cheap.
+//
+// "Keep me logged in" stays a checkbox on the login form, as it is on
+// Wikipedia, and ticking it now lasts a year rather than six months.
+$wgObjectCacheSessionExpiry = 90 * 24 * 3600;
+$wgCookieExpiration = 365 * 24 * 3600;
+$wgExtendedLoginCookieExpiration = 365 * 24 * 3600;
+$wgRememberMe = 'choose';
+
 // Jobs run from cron (scripts/run-jobs.sh), never on a page view — a page view
 // that also runs a job is a page view that feels slow.
 $wgJobRunRate = 0;
@@ -237,7 +254,13 @@ wfLoadExtension( 'WikiClone' );
 // Wikipedia: and Help: pages are linked from article maintenance templates and
 // from the sidebar; leaving them out is what makes "Wikipedia:Verifiability"
 // render red on an otherwise perfect article.
-$wgWikiCloneImportNamespaces = [ NS_MAIN, NS_TALK, NS_PROJECT, NS_HELP, NS_PORTAL ];
+// User pages are here so that a sandbox is the sandbox: visiting
+// User:Someone/sandbox fetches what Wikipedia has at that title, the same way
+// an article does. A page written here instead simply exists, and is left
+// alone.
+$wgWikiCloneImportNamespaces = [
+	NS_MAIN, NS_TALK, NS_PROJECT, NS_HELP, NS_PORTAL, NS_USER, NS_USER_TALK,
+];
 
 // ------------------------------------------------------------------- debug ---
 // Detail goes to the container log, never to the page: MediaWiki's own

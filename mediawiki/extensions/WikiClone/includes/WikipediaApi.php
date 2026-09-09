@@ -272,6 +272,44 @@ class WikipediaApi {
 	}
 
 	/**
+	 * The templates Wikipedia transcludes most, most-used first.
+	 *
+	 * Worth having before anyone asks for them. The slow part of a cold page
+	 * view is not fetching the article, it is fetching the hundred templates
+	 * and modules behind it, and those are the same hundred for almost every
+	 * article. Importing the common core once turns most later cold views into
+	 * a fetch and a render.
+	 *
+	 * @return string[] prefixed titles
+	 */
+	public function getMostTranscludedTemplates( int $limit = 500 ): array {
+		$titles = [];
+		$continue = [];
+
+		do {
+			$data = $this->request( [
+				'action' => 'query',
+				'list' => 'querypage',
+				'qppage' => 'Mostlinkedtemplates',
+				'qplimit' => 'max',
+			] + $continue );
+
+			foreach ( $data['query']['querypage']['results'] ?? [] as $result ) {
+				if ( isset( $result['title'] ) ) {
+					$titles[] = $result['title'];
+				}
+				if ( count( $titles ) >= $limit ) {
+					return $titles;
+				}
+			}
+
+			$continue = $data['continue'] ?? [];
+		} while ( $continue );
+
+		return $titles;
+	}
+
+	/**
 	 * The upstream interwiki map: which prefixes exist and where they point.
 	 *
 	 * @return array[] entries as the API returns them

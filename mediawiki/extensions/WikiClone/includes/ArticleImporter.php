@@ -91,8 +91,20 @@ class ArticleImporter {
 				$stats['api'] += microtime( true ) - $mark;
 			}
 
+			// A template imported by name is still a dependency, not an
+			// article: purging articles nobody has read must not take the
+			// template tree out from under the ones that remain.
+			$dependencyNamespaces = [ NS_TEMPLATE ];
+			if ( defined( 'NS_MODULE' ) ) {
+				$dependencyNamespaces[] = NS_MODULE;
+			}
+
+			$kind = in_array( $title->getNamespace(), $dependencyNamespaces, true )
+				? PageStateStore::KIND_DEPENDENCY
+				: PageStateStore::KIND_ARTICLE;
+
 			$mark = microtime( true );
-			$status->merge( $this->saveMany( $articles, $user, PageStateStore::KIND_ARTICLE ) );
+			$status->merge( $this->saveMany( $articles, $user, $kind ) );
 			$stats['save'] += microtime( true ) - $mark;
 
 			$stats['api'] = round( $stats['api'], 1 );

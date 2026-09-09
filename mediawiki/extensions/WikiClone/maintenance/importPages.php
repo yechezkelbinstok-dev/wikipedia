@@ -29,6 +29,7 @@ class ImportPages extends Maintenance {
 		$this->addOption( 'backfill', 'Keep the page but fetch any dependencies it is missing' );
 		$this->addOption( 'backfill-all', 'Backfill every article imported so far' );
 		$this->addOption( 'category', 'Import every article in this category', false, true );
+		$this->addOption( 'most-used', 'Import the templates Wikipedia transcludes most' );
 		$this->addOption( 'limit', 'Cap how many titles a category contributes', false, true );
 		$this->addOption( 'warm', 'Render each page after importing, so the first real view is served from the parser cache' );
 		$this->addArg( 'title', 'Title to import', false, true );
@@ -145,6 +146,15 @@ class ImportPages extends Maintenance {
 			}
 
 			$this->output( 'Backfilling ' . count( $titles ) . " imported articles\n" );
+		}
+
+		if ( $this->hasOption( 'most-used' ) ) {
+			$api = MediaWikiServices::getInstance()->getService( 'WikiClone.WikipediaApi' );
+			$templates = $api->getMostTranscludedTemplates(
+				(int)$this->getOption( 'limit', 500 )
+			);
+			$this->output( 'Most-transcluded templates: ' . count( $templates ) . "\n" );
+			$titles = array_merge( $titles, $templates );
 		}
 
 		if ( $this->hasOption( 'category' ) ) {

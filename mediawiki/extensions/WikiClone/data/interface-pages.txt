@@ -40,3 +40,21 @@ MediaWiki:Aboutsite
 MediaWiki:Aboutpage
 MediaWiki:Disclaimers
 MediaWiki:Disclaimerpage
+
+# Footnote labels. Cite numbers a named group from these lists, and without
+# them a note that should read [a] reads [lower-alpha 1] — the group's own
+# name, printed because there is no label list to draw from. {{efn}} uses
+# lower-alpha, so this shows up on any article with explanatory notes.
+MediaWiki:Cite link label group-lower-alpha
+MediaWiki:Cite link label group-upper-alpha
+MediaWiki:Cite link label group-lower-roman
+MediaWiki:Cite link label group-upper-roman
+MediaWiki:Cite link label group-lower-greek
+MediaWiki:Cite link label group-note
+
+# Cite's own interface strings, so reference errors and backlinks read as
+# Wikipedia's do.
+MediaWiki:Cite references link many format
+MediaWiki:Cite references link many accessibility label
+MediaWiki:Cite reference backlink symbol
+MediaWiki:Cite references no backlink text
