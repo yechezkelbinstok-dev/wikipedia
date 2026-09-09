@@ -42,18 +42,28 @@ class WikibaseLibrary extends LibraryBase {
 		return $this->client;
 	}
 
+	/** Resolved once per page, so it is not worth charging for. */
 	public function getEntityIdForCurrentPage(): array {
 		$title = $this->getTitle();
-		$this->incrementExpensiveFunctionCount();
 
 		return [ $title ? $this->client()->getEntityIdForTitle( $title ) : null ];
+	}
+
+	/**
+	 * Charge the parser only for entities this request has not already
+	 * loaded — which is how Wikibase itself accounts for them.
+	 */
+	private function chargeFor( string $id ): void {
+		if ( !$this->client()->isLoaded( $id ) ) {
+			$this->incrementExpensiveFunctionCount();
+		}
 	}
 
 	public function getEntity( $id = null ): array {
 		if ( !is_string( $id ) ) {
 			return [ null ];
 		}
-		$this->incrementExpensiveFunctionCount();
+		$this->chargeFor( $id );
 
 		$entity = $this->client()->getEntity( $id );
 
@@ -87,7 +97,7 @@ class WikibaseLibrary extends LibraryBase {
 		if ( !is_string( $id ) || !is_string( $property ) ) {
 			return [ [] ];
 		}
-		$this->incrementExpensiveFunctionCount();
+		$this->chargeFor( $id );
 
 		return [ self::forLua( $this->client()->getBestStatements( $id, $property ), true ) ];
 	}
@@ -96,7 +106,7 @@ class WikibaseLibrary extends LibraryBase {
 		if ( !is_string( $id ) || !is_string( $property ) ) {
 			return [ [] ];
 		}
-		$this->incrementExpensiveFunctionCount();
+		$this->chargeFor( $id );
 
 		return [ self::forLua( $this->client()->getAllStatements( $id, $property ), true ) ];
 	}
@@ -117,7 +127,7 @@ class WikibaseLibrary extends LibraryBase {
 		if ( !is_string( $id ) || !is_string( $property ) ) {
 			return [ [ 'value' => '', 'label' => '' ] ];
 		}
-		$this->incrementExpensiveFunctionCount();
+		$this->chargeFor( $id );
 
 		return [ $this->client()->formatPropertyValues( $id, $property ) ];
 	}

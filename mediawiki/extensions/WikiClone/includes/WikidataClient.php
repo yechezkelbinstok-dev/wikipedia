@@ -250,6 +250,18 @@ class WikidataClient {
 		return $this->getEntity( $id ) !== null;
 	}
 
+	/**
+	 * Whether this entity has already been loaded in this request.
+	 *
+	 * Wikibase counts loading an entity against the parser's expensive-call
+	 * budget, but not reading one it already holds. Counting every access
+	 * exhausts the budget on any article that consults Wikidata more than a
+	 * hundred times, and the page ends in "too many expensive function calls".
+	 */
+	public function isLoaded( string $id ): bool {
+		return array_key_exists( $id, $this->entities );
+	}
+
 	public static function isValidEntityId( string $id ): bool {
 		return (bool)preg_match( '/^[QPL]\d+$/', $id );
 	}

@@ -278,3 +278,32 @@ after it was taken is not in it, so links to it render red even though it
 exists. Two things address that — the cron refreshes the index monthly, and
 `$wgWikiCloneFetchUnindexed` means that navigating directly to such a page
 still asks upstream, so it loads even while the index is stale.
+
+## Interwiki links
+
+Prefixed links like `[[c:Barack Obama]]` or `[[s:Executive Order 13506]]` are
+ordinary links to Commons and Wikisource on Wikipedia. Without the interwiki
+table MediaWiki does not recognise the prefix at all and renders a red link to
+a local page that will never exist. Language prefixes are the same story, which
+is what leaves `[[ja:メタ構文変数]]` red.
+
+```bash
+docker compose exec mediawiki php extensions/WikiClone/maintenance/importInterwiki.php
+```
+
+## Testing search
+
+The wiki requires an account to read, so an anonymous request to the search API
+is refused before it reaches any of the extension's code — which makes `curl`
+useless for telling a broken search from a correctly protected one:
+
+```
+{"error":"rest-read-denied","httpCode":403}
+```
+
+Run the same completion search the suggestion endpoint runs, without the
+permission check in the way:
+
+```bash
+docker compose exec mediawiki php extensions/WikiClone/maintenance/searchTest.php "Barack Ob"
+```

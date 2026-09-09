@@ -160,6 +160,21 @@ class WikipediaApi {
 		return $titles;
 	}
 
+	/**
+	 * The upstream interwiki map: which prefixes exist and where they point.
+	 *
+	 * @return array[] entries as the API returns them
+	 */
+	public function getInterwikiMap(): array {
+		$data = $this->request( [
+			'action' => 'query',
+			'meta' => 'siteinfo',
+			'siprop' => 'interwikimap',
+		] );
+
+		return $data['query']['interwikimap'] ?? [];
+	}
+
 	private function request( array $params ): array {
 		$params['format'] = 'json';
 		$params['formatversion'] = 2;

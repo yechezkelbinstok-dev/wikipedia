@@ -67,6 +67,10 @@ $wgImageMagickConvertCommand = '/usr/bin/convert';
 
 // ------------------------------------------------------------------- limits --
 $wgMaxArticleSize = 2048;   // KB — enwiki's value
+
+// enwiki's value. The default of 100 is exhausted by a long article's Wikidata
+// lookups alone, and the page then ends in "too many expensive function calls".
+$wgExpensiveParserFunctionLimit = 500;
 $wgMaxShellMemory = 307200; // Scribunto needs room on big citation-heavy pages
 $wgMaxShellTime   = 60;
 $wgMaxShellFileSize = 102400;
