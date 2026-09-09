@@ -86,7 +86,7 @@ class Audit extends Maintenance {
 		$path = __DIR__ . '/../data/interface-pages.txt';
 		$lines = @file( $path, FILE_IGNORE_NEW_LINES | FILE_SKIP_EMPTY_LINES ) ?: [];
 
-		$missing = [];
+		$absent = [];
 		foreach ( $lines as $line ) {
 			$line = trim( $line );
 			if ( $line === '' || $line[0] === '#' ) {
@@ -94,15 +94,33 @@ class Audit extends Maintenance {
 			}
 			$title = Title::newFromText( $line );
 			if ( $title && !$title->exists() ) {
-				$missing[] = $line;
+				$absent[] = $line;
 			}
 		}
 
+		// Wikipedia does not customise every one of these; where it leaves
+		// MediaWiki's default in place, so do we, and the page is absent on
+		// both wikis. Only the ones upstream has written are worth having, so
+		// ask rather than treating every absence as a fault.
+		$missing = [];
+		if ( $absent ) {
+			$api = MediaWikiServices::getInstance()->getService( 'WikiClone.WikipediaApi' );
+			$missing = array_values(
+				array_intersect( $absent, array_keys( $api->getLastRevisionIds( $absent ) ) )
+			);
+		}
+
 		$this->assert(
-			'every interface page listed is present',
+			'every interface page Wikipedia customises is present',
 			!$missing,
 			$missing ? 'missing: ' . implode( ', ', $missing ) : ''
 		);
+
+		$notUpstream = array_diff( $absent, $missing );
+		if ( $notUpstream ) {
+			$this->output( '  note  ' . count( $notUpstream )
+				. " listed pages are not customised on Wikipedia either\n" );
+		}
 	}
 
 	private function checkLogos(): void {
@@ -141,9 +159,35 @@ class Audit extends Maintenance {
 		// Cite prints a named group's own name when it has no label list, so a
 		// note that should read [a] reads [lower-alpha 1]. {{efn}} uses this
 		// group, so it shows up on any article with explanatory notes.
-		foreach ( [ 'lower-alpha', 'upper-alpha', 'lower-roman', 'upper-roman', 'note' ] as $group ) {
+		$groups = [ 'lower-alpha', 'upper-alpha', 'lower-roman', 'upper-roman', 'note' ];
+
+		$absent = [];
+		foreach ( $groups as $group ) {
 			$title = Title::makeTitle( NS_MEDIAWIKI, 'Cite link label group-' . $group );
-			$this->assert( "footnote labels for $group", $title->exists() );
+			if ( $title->exists() ) {
+				$this->output( "  ok    footnote labels for $group\n" );
+			} else {
+				$absent[$group] = $title->getPrefixedText();
+			}
+		}
+
+		if ( !$absent ) {
+			return;
+		}
+
+		// A group Wikipedia has no label list for is one Cite numbers there
+		// too, so its absence here is not a difference.
+		$api = MediaWikiServices::getInstance()->getService( 'WikiClone.WikipediaApi' );
+		$upstream = array_keys( $api->getLastRevisionIds( array_values( $absent ) ) );
+
+		foreach ( $absent as $group => $prefixedTitle ) {
+			if ( in_array( $prefixedTitle, $upstream, true ) ) {
+				$this->assert( "footnote labels for $group", false );
+			} else {
+				$this->output(
+					"  note  $group has no label list on Wikipedia either\n"
+				);
+			}
 		}
 	}
 
@@ -195,9 +239,16 @@ class Audit extends Maintenance {
 			"$name: no error spans",
 			!preg_match( '/class="[^"]*\berror\b/', $html )
 		);
+		// A broken label renders as the group's name and a number — "[lower-alpha
+		// 1]". The bare words appear in ordinary CSS too, so matching those
+		// reports a fault on a page that is perfectly fine.
+		$brokenLabels = preg_match_all(
+			'/\[(?:lower|upper)-(?:alpha|roman|greek) \d+\]/', $html
+		);
 		$this->assert(
 			"$name: footnote labels are letters, not group names",
-			!str_contains( $html, 'lower-alpha' ) && !str_contains( $html, 'upper-alpha' )
+			!$brokenLabels,
+			$brokenLabels ? "$brokenLabels labels still read as the group name" : ''
 		);
 		$this->assert( "$name: citations rendered", substr_count( $html, 'class="reference"' ) > 0 );
 
