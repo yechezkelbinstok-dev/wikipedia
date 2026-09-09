@@ -69,6 +69,12 @@ class CheckPage extends Maintenance {
 		$redLinks = $this->redLinks( $html );
 		$this->output( sprintf( "  red links     %d\n", count( $redLinks ) ) );
 
+		$categories = $this->categories( $parserOutput );
+		$this->output( sprintf(
+			"  categories    %d shown, %d hidden\n",
+			count( $categories['shown'] ), count( $categories['hidden'] )
+		) );
+
 		if ( $lua ) {
 			$this->output( "\nLua errors:\n" );
 			foreach ( $lua as $message => $count ) {
@@ -80,6 +86,13 @@ class CheckPage extends Maintenance {
 			$this->output( "\ndistinct errors:\n" );
 			foreach ( $errors['distinct'] as $message => $count ) {
 				$this->output( sprintf( "  [%dx] %s\n", $count, $this->trim( $message ) ) );
+			}
+		}
+
+		if ( $categories['shown'] ) {
+			$this->output( "\ncategories a reader sees:\n" );
+			foreach ( $categories['shown'] as $category ) {
+				$this->output( '  ' . $category . "\n" );
 			}
 		}
 
@@ -99,6 +112,45 @@ class CheckPage extends Maintenance {
 				$this->output( '  ' . $red . $note . "\n" );
 			}
 		}
+	}
+
+	/**
+	 * Which categories the footer would print, and which stay out of sight.
+	 *
+	 * Wikipedia's maintenance categories are hidden, and a reader never sees
+	 * them; a clone that prints them at the foot of every article is instantly
+	 * distinguishable from the real thing, so this counts both.
+	 *
+	 * @return array{shown:string[],hidden:string[]}
+	 */
+	private function categories( $parserOutput ): array {
+		$names = method_exists( $parserOutput, 'getCategoryNames' )
+			? $parserOutput->getCategoryNames()
+			: array_keys( $parserOutput->getCategories() );
+
+		$titles = [];
+		foreach ( $names as $name ) {
+			$titles[] = Title::makeTitle( NS_CATEGORY, $name );
+		}
+
+		if ( !$titles ) {
+			return [ 'shown' => [], 'hidden' => [] ];
+		}
+
+		$hiddenIds = MediaWikiServices::getInstance()->getPageProps()
+			->getProperties( $titles, 'hiddencat' );
+
+		$shown = [];
+		$hidden = [];
+		foreach ( $titles as $title ) {
+			if ( isset( $hiddenIds[$title->getArticleID()] ) ) {
+				$hidden[] = $title->getText();
+			} else {
+				$shown[] = $title->getText();
+			}
+		}
+
+		return [ 'shown' => $shown, 'hidden' => $hidden ];
 	}
 
 	/**

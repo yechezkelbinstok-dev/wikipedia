@@ -13,13 +13,19 @@ MW="cd $REPO && docker compose exec -T mediawiki php"
 # something has to drain the queue instead, or link tables and category
 # membership drift out of date.
 #
+# Wikipedia turns the Main Page over at midnight UTC, and what it shows then
+# partly lives at titles that did not exist the day before, so the refresh has
+# to run rather than wait for someone to load the page.
+#
 # The title index is a snapshot of a dump, so articles created since it was
 # taken are missing from it and their links render red. Monthly is roughly the
 # cadence at which Wikimedia publishes a new one.
 NEW=$(cat <<CRON
 $MARKER
 */5 * * * * $MW maintenance/run.php runJobs --maxjobs 200 >> $LOGS/jobs.log 2>&1
+5 0 * * * $MW extensions/WikiClone/maintenance/refreshMainPage.php >> $LOGS/mainpage.log 2>&1
 23 4 * * 0 $MW extensions/WikiClone/maintenance/syncArticles.php >> $LOGS/sync.log 2>&1
+41 4 * * 0 $MW extensions/WikiClone/maintenance/markHiddenCategories.php >> $LOGS/sync.log 2>&1
 47 5 * * 0 $MW extensions/WikiClone/maintenance/purgeStale.php --dependencies >> $LOGS/purge.log 2>&1
 13 3 4 * * cd $REPO && ./scripts/04-import-titles.sh >> $LOGS/titles.log 2>&1
 $MARKER
