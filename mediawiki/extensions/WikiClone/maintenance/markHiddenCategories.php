@@ -27,7 +27,7 @@ class MarkHiddenCategories extends Maintenance {
 		parent::__construct();
 		$this->addDescription( 'Mark locally held category pages hidden where upstream hides them.' );
 		$this->addOption( 'dry-run', 'Report what would change without changing it' );
-		$this->addOption( 'limit', 'Category pages to fetch in this run (default 400)', false, true );
+		$this->addOption( 'limit', 'Category pages to fetch in this run (default 1000)', false, true );
 		$this->requireExtension( 'WikiClone' );
 	}
 
@@ -95,15 +95,24 @@ class MarkHiddenCategories extends Maintenance {
 	 * reader here would see, which is the set that matters.
 	 */
 	private function fetchCategoriesInUse( $importer, bool $dryRun ): void {
+		// Only categories that articles are in. Category pages are themselves
+		// categorised — in "Hidden categories", in container categories — so
+		// fetching every category any page is in makes the list grow faster
+		// than it is worked off, chasing a tree that no reader ever sees the
+		// far end of.
 		$missing = $this->getDB( DB_REPLICA )->newSelectQueryBuilder()
 			->select( 'cl_to' )
 			->distinct()
 			->from( 'categorylinks' )
-			->leftJoin( 'page', null, [
-				'page_namespace' => NS_CATEGORY,
-				'page_title = cl_to',
+			->join( 'page', 'src', [
+				'src.page_id = cl_from',
+				$this->getDB( DB_REPLICA )->expr( 'src.page_namespace', '!=', NS_CATEGORY ),
 			] )
-			->where( [ 'page_id' => null ] )
+			->leftJoin( 'page', 'cat', [
+				'cat.page_namespace' => NS_CATEGORY,
+				'cat.page_title = cl_to',
+			] )
+			->where( [ 'cat.page_id' => null ] )
 			->caller( __METHOD__ )
 			->fetchFieldValues();
 
@@ -117,7 +126,7 @@ class MarkHiddenCategories extends Maintenance {
 		// burst. Wikimedia is entitled to refuse a client that asks for a
 		// thousand pages as fast as it can, and being refused is how the last
 		// attempt ended.
-		$limit = (int)$this->getOption( 'limit', 400 );
+		$limit = (int)$this->getOption( 'limit', 1000 );
 		if ( count( $missing ) > $limit ) {
 			$this->output( "Taking $limit of them this run.\n" );
 			$missing = array_slice( $missing, 0, $limit );

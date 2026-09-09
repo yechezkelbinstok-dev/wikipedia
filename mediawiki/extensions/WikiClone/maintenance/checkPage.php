@@ -89,7 +89,18 @@ class CheckPage extends Maintenance {
 			}
 		}
 
-		if ( $categories['shown'] ) {
+		if ( $categories['shown'] && $this->getOption( 'check-upstream' ) ) {
+			$wrong = $this->shownButHiddenUpstream( $categories['shown'] );
+			$this->output( sprintf(
+				"  of those, %d are hidden on Wikipedia — those are the defects\n",
+				count( $wrong )
+			) );
+			foreach ( $wrong as $category ) {
+				$this->output( '    ' . $category . "\n" );
+			}
+		}
+
+		if ( $categories['shown'] && !$this->getOption( 'check-upstream' ) ) {
 			$this->output( "\ncategories a reader sees:\n" );
 			foreach ( $categories['shown'] as $category ) {
 				$this->output( '  ' . $category . "\n" );
@@ -112,6 +123,30 @@ class CheckPage extends Maintenance {
 				$this->output( '  ' . $red . $note . "\n" );
 			}
 		}
+	}
+
+	/**
+	 * The categories printed here that Wikipedia hides. A long footer is not by
+	 * itself a fault — Wikipedia's own is long — so counting the ones that
+	 * should not be there is the only number that means anything.
+	 *
+	 * @param string[] $shown category names
+	 * @return string[]
+	 */
+	private function shownButHiddenUpstream( array $shown ): array {
+		$api = MediaWikiServices::getInstance()->getService( 'WikiClone.WikipediaApi' );
+
+		$titles = [];
+		foreach ( $shown as $name ) {
+			$titles[] = 'Category:' . $name;
+		}
+
+		$wrong = [];
+		foreach ( $api->getHiddenCategories( $titles ) as $prefixedTitle ) {
+			$wrong[] = preg_replace( '/^Category:/', '', $prefixedTitle );
+		}
+
+		return $wrong;
 	}
 
 	/**
