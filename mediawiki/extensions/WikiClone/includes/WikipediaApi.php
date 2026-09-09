@@ -175,6 +175,52 @@ class WikipediaApi {
 		return $data['query']['interwikimap'] ?? [];
 	}
 
+	/**
+	 * Upstream's own search suggestions, in upstream's own order.
+	 *
+	 * The local index can only offer titles alphabetically, which puts
+	 * "Test&set" and "Test, John" above "Testosterone". Wikipedia orders by
+	 * relevance, and carries the short description and thumbnail its search
+	 * box shows, so all three come from one call here.
+	 *
+	 * It also covers articles created since the index dump was taken, which
+	 * the index cannot know about at all.
+	 *
+	 * @return array<int,array{title:string,description:?string,thumbnail:?string}>
+	 */
+	public function prefixSearch( string $term, int $limit = 10 ): array {
+		$data = $this->request( [
+			'action' => 'query',
+			'generator' => 'prefixsearch',
+			'gpssearch' => $term,
+			'gpslimit' => min( $limit, 50 ),
+			'prop' => 'pageprops|pageimages',
+			'ppprop' => 'wikibase-shortdesc',
+			'piprop' => 'thumbnail',
+			'pithumbsize' => 80,
+		] );
+
+		$pages = $data['query']['pages'] ?? [];
+
+		// The generator returns relevance order in `index`, which the page map
+		// does not preserve on its own.
+		usort( $pages, static fn ( $a, $b ) => ( $a['index'] ?? PHP_INT_MAX ) <=> ( $b['index'] ?? PHP_INT_MAX ) );
+
+		$results = [];
+		foreach ( $pages as $page ) {
+			if ( !isset( $page['title'] ) ) {
+				continue;
+			}
+			$results[] = [
+				'title' => $page['title'],
+				'description' => $page['pageprops']['wikibase-shortdesc'] ?? null,
+				'thumbnail' => $page['thumbnail']['source'] ?? null,
+			];
+		}
+
+		return $results;
+	}
+
 	private function request( array $params ): array {
 		$params['format'] = 'json';
 		$params['formatversion'] = 2;

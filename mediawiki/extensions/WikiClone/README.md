@@ -149,9 +149,13 @@ to it.
 
 `SearchHooks` points search at the title index instead:
 
-- **`PrefixSearchBackend`** fills the search box's autocomplete from all 22M
-  upstream titles. Locally held pages come first, since those include anything
-  you wrote, which is not in the upstream index at all.
+- **`PrefixSearchBackend`** fills the search box's autocomplete. Suggestions
+  come from upstream, in upstream's order, carrying its short descriptions and
+  thumbnails — the local index can only order alphabetically, which puts
+  `Test&set` and `Test, John` above `Testosterone`, and cannot know about
+  articles created since the dump was taken. Locally held pages come first,
+  since those include anything you wrote. The index is the offline fallback,
+  and remembers the titles upstream returns, so it heals as it is used.
 - **`SearchGetNearMatch`** makes pressing Enter on an exact title go to the
   article and import it, rather than landing on an empty results page.
 

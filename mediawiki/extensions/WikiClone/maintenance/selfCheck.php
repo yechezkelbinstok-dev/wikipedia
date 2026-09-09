@@ -36,6 +36,7 @@ class SelfCheck extends Maintenance {
 		$this->checkServices();
 		$this->checkSearch();
 		$this->checkWikibase();
+		$this->checkSuggestionDetail();
 		$this->checkTitleIndex();
 
 		$this->output( "\n" );
@@ -123,6 +124,29 @@ class SelfCheck extends Maintenance {
 			if ( !isset( $libraries['mw.wikibase'] ) ) {
 				throw new \RuntimeException( 'mw.wikibase was not registered' );
 			}
+		} );
+	}
+
+	/**
+	 * A suggestion without a description is a suggestion that does not look
+	 * like Wikipedia's, which is the whole point of asking upstream for them.
+	 */
+	private function checkSuggestionDetail(): void {
+		$this->attempt( 'suggestions carry descriptions', static function () {
+			$api = MediaWikiServices::getInstance()->getService( 'WikiClone.WikipediaApi' );
+			$results = $api->prefixSearch( 'Testost', 5 );
+
+			if ( !$results ) {
+				throw new \RuntimeException( 'upstream returned no suggestions' );
+			}
+
+			foreach ( $results as $result ) {
+				if ( ( $result['description'] ?? null ) !== null ) {
+					return;
+				}
+			}
+
+			throw new \RuntimeException( 'none of them carried a description' );
 		} );
 	}
 

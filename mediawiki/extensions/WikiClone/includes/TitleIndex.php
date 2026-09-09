@@ -79,4 +79,37 @@ class TitleIndex {
 
 		return $results;
 	}
+
+	/**
+	 * Record titles the index did not know about.
+	 *
+	 * The index is loaded from a dump, so anything created since is missing
+	 * from it — which is why an article could exist upstream and still be
+	 * unfindable here. When a search reaches upstream and learns about such a
+	 * title, keeping it means the index heals as it is used, rather than
+	 * waiting for the next monthly reload.
+	 *
+	 * @param array<int,array{0:int,1:string}> $titles [ namespace, dbKey ] pairs
+	 */
+	public function remember( array $titles ): void {
+		$rows = [];
+		foreach ( $titles as [ $namespace, $dbKey ] ) {
+			if ( $dbKey === '' || strlen( $dbKey ) > 255 ) {
+				continue;
+			}
+			$rows[] = [ 'wct_namespace' => $namespace, 'wct_title' => $dbKey ];
+			$this->memo[$namespace . ':' . $dbKey] = true;
+		}
+
+		if ( !$rows ) {
+			return;
+		}
+
+		$this->dbProvider->getPrimaryDatabase()->newInsertQueryBuilder()
+			->insertInto( 'wikiclone_title' )
+			->ignore()
+			->rows( $rows )
+			->caller( __METHOD__ )
+			->execute();
+	}
 }

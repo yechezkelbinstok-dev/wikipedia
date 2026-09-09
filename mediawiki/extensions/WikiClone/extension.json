@@ -33,8 +33,10 @@
 			"class": "MediaWiki\\Extension\\WikiClone\\SearchHooks",
 			"services": [
 				"WikiClone.TitleIndex",
+				"WikiClone.WikipediaApi",
 				"TitleFactory",
-				"ConnectionProvider"
+				"ConnectionProvider",
+				"MainWANObjectCache"
 			]
 		},
 		"shortdesc": {
@@ -53,7 +55,9 @@
 		"SearchGetNearMatch": "search",
 		"ParserFirstCallInit": "shortdesc",
 		"ScribuntoExternalLibraries": "scribunto",
-		"TitleIsAlwaysKnown": "main"
+		"TitleIsAlwaysKnown": "main",
+		"SearchResultProvideDescription": "search",
+		"SearchResultProvideThumbnail": "search"
 	},
 	"ServiceWiringFiles": [
 		"includes/ServiceWiring.php"
