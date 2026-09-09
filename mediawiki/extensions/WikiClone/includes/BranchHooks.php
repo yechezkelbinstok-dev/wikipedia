@@ -57,6 +57,12 @@ class BranchHooks implements
 		self::$active = $this->resolveBranch( $request );
 		self::$pinned = null;
 
+		// Until somebody makes a branch there is nothing to resolve, and every
+		// page view should pay nothing for a feature it is not using.
+		if ( !$this->branches->listBranches() ) {
+			return;
+		}
+
 		if ( !$title || !$title->canExist() || !$title->exists() ) {
 			return;
 		}
@@ -67,8 +73,12 @@ class BranchHooks implements
 			return;
 		}
 
+		// A save is deliberately not on this list. Saving is MediaWiki's own
+		// business, and an oldid on the way in is how an ordinary edit turns
+		// into a restore of an old revision; the branch claims the revision
+		// afterwards instead, in onPageSaveComplete.
 		$action = $request->getVal( 'action', 'view' );
-		if ( !in_array( $action, [ 'view', 'edit', 'submit', 'raw' ], true ) ) {
+		if ( !in_array( $action, [ 'view', 'edit', 'raw' ], true ) ) {
 			return;
 		}
 
