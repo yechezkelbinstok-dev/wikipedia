@@ -122,7 +122,14 @@ class Hooks implements
 			return;
 		}
 
-		if ( !$this->titleIndex->exists( $title->getNamespace(), $title->getDBkey() ) ) {
+		// The index is a snapshot of a dump, so an article created since it was
+		// taken is simply not in it. For a link that is only a colour decision
+		// this does not matter, but someone who has navigated here directly is
+		// asking for a specific page, and it is worth one request upstream to
+		// find out whether it exists.
+		if ( !$this->titleIndex->exists( $title->getNamespace(), $title->getDBkey() )
+			&& !$this->config->get( 'WikiCloneFetchUnindexed' )
+		) {
 			return;
 		}
 

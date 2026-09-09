@@ -17,6 +17,14 @@ return [
 		return new PageStateStore( $services->getConnectionProvider() );
 	},
 
+	'WikiClone.WikidataClient' => static function ( MediaWikiServices $services ): WikidataClient {
+		return new WikidataClient(
+			$services->getHttpRequestFactory(),
+			$services->getMainWANObjectCache(),
+			$services->getMainConfig()->get( 'WikiCloneUserAgent' )
+		);
+	},
+
 	'WikiClone.WikipediaApi' => static function ( MediaWikiServices $services ): WikipediaApi {
 		$config = $services->getMainConfig();
 		return new WikipediaApi(

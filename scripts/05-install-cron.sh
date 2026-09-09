@@ -12,11 +12,16 @@ MW="cd $REPO && docker compose exec -T mediawiki php"
 # LocalSettings sets $wgJobRunRate = 0 so a page view never also runs a job;
 # something has to drain the queue instead, or link tables and category
 # membership drift out of date.
+#
+# The title index is a snapshot of a dump, so articles created since it was
+# taken are missing from it and their links render red. Monthly is roughly the
+# cadence at which Wikimedia publishes a new one.
 NEW=$(cat <<CRON
 $MARKER
 */5 * * * * $MW maintenance/run.php runJobs --maxjobs 200 >> $LOGS/jobs.log 2>&1
 23 4 * * 0 $MW extensions/WikiClone/maintenance/syncArticles.php >> $LOGS/sync.log 2>&1
 47 5 * * 0 $MW extensions/WikiClone/maintenance/purgeStale.php --dependencies >> $LOGS/purge.log 2>&1
+13 3 4 * * cd $REPO && ./scripts/04-import-titles.sh >> $LOGS/titles.log 2>&1
 $MARKER
 CRON
 )

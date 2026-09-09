@@ -231,6 +231,9 @@ wfLoadExtension( 'WikiClone' );
 $wgWikiCloneImportNamespaces = [ NS_MAIN, NS_TALK, NS_PROJECT, NS_HELP, NS_PORTAL ];
 
 // ------------------------------------------------------------------- debug ---
-// Turn these off once the build settles.
+// Detail goes to the container log, never to the page: MediaWiki's own
+// warnings were being rendered into the article and into API responses.
 $wgShowExceptionDetails = true;
 $wgShowDBErrorBacktrace = true;
+$wgDevelopmentWarnings = false;
+$wgDebugToolbar = false;

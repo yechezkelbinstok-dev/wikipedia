@@ -252,3 +252,29 @@ while someone is waiting:
 Within a cold import, fetching is not the cost: 110 dependencies took 0.7s to
 fetch and 24s to save. That is why dependency saves skip the search index —
 nobody full-text searches `Module:Citation/CS1`.
+
+## Wikidata
+
+Wikipedia's modules reach into Wikidata through `mw.wikibase`. Without a
+provider that table is nil and every module touching it dies with *"attempt to
+index field 'wikibase'"* — five of them on a single article, behind
+official-website links, sister-project boxes and archive links.
+
+`WikidataClient` fetches entities from wikidata.org on demand and caches them,
+in the same spirit as the article importer: nothing is stored up front, and
+what gets used sticks around. `WikibaseLibrary` exposes it to Lua under the
+names and return shapes the real client uses, because the modules calling them
+are Wikipedia's own and were written against it.
+
+Only the surface those modules actually use is implemented. Anything else
+returns nil or an empty table — which is exactly what the real client does for
+an article with no Wikidata item, so a module takes its "no data" path rather
+than failing.
+
+## Why some links are still red
+
+The title index comes from a dump, and a dump is a snapshot: an article created
+after it was taken is not in it, so links to it render red even though it
+exists. Two things address that — the cron refreshes the index monthly, and
+`$wgWikiCloneFetchUnindexed` means that navigating directly to such a page
+still asks upstream, so it loads even while the index is stale.

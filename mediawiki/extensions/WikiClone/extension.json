@@ -39,6 +39,9 @@
 		},
 		"shortdesc": {
 			"class": "MediaWiki\\Extension\\WikiClone\\ShortDescriptionHooks"
+		},
+		"scribunto": {
+			"class": "MediaWiki\\Extension\\WikiClone\\ScribuntoHooks"
 		}
 	},
 	"Hooks": {
@@ -48,7 +51,8 @@
 		"PageDeleteComplete": "main",
 		"PrefixSearchBackend": "search",
 		"SearchGetNearMatch": "search",
-		"ParserFirstCallInit": "shortdesc"
+		"ParserFirstCallInit": "shortdesc",
+		"ScribuntoExternalLibraries": "scribunto"
 	},
 	"ServiceWiringFiles": [
 		"includes/ServiceWiring.php"
@@ -79,6 +83,10 @@
 		"WikiCloneStaleAfterDays": {
 			"description": "Imported articles untouched for this many days are eligible for purging. Pages carrying local edits are never purged.",
 			"value": 90
+		},
+		"WikiCloneFetchUnindexed": {
+			"description": "Try upstream even for titles absent from the index. The index is a dump snapshot, so articles created since it was taken are missing from it; this costs one request on a direct visit to such a page.",
+			"value": true
 		}
 	},
 	"manifest_version": 2,

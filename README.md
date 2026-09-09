@@ -82,4 +82,4 @@ creation is disabled. To make it world-readable, set
 - [x] Search over the title index
 - [ ] Main Page daily refresh
 - [ ] Branched page history
-- [ ] Wikidata-backed infobox values
+- [x] Wikidata (mw.wikibase for Scribunto)

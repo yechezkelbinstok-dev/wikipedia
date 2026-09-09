@@ -179,6 +179,15 @@ class ArticleImporter {
 	private function save(
 		Title $title, string $text, int $remoteRevId, User $user, int $kind
 	): StatusValue {
+		// Existence was last checked against the link cache, before any of this
+		// import's own saves. A title can appear twice in one transclusion tree,
+		// or be created by an earlier save in the same run, and the stale answer
+		// then drives a create that fails with "it already exists". Ask the
+		// primary database, which knows what this run has just written.
+		if ( $title->getArticleID( IDBAccessObject::READ_LATEST ) ) {
+			return StatusValue::newGood();
+		}
+
 		$handler = $this->contentHandlerFactory->getContentHandler(
 			$title->getContentModel()
 		);
