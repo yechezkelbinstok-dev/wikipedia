@@ -46,25 +46,25 @@ class SelfCheck extends Maintenance {
 	}
 
 	/**
-	 * Constructing a handler is the point: registration alone proves nothing,
-	 * because a missing interface only surfaces on instantiation.
+	 * Loading a handler class is the point. Registration proves nothing: a
+	 * handler naming an interface that does not exist registers happily and
+	 * fails only when the autoloader is asked for it, which is exactly how
+	 * search stayed broken while everything looked fine.
 	 */
 	private function checkHooks(): void {
-		$container = MediaWikiServices::getInstance()->getHookContainer();
+		$manifest = json_decode(
+			(string)file_get_contents( __DIR__ . '/../extension.json' ),
+			true
+		);
 
-		foreach ( [
-			'HtmlPageLinkRendererBegin',
-			'BeforeInitialize',
-			'PageDeleteComplete',
-			'PrefixSearchBackend',
-			'SearchGetNearMatch',
-			'ParserFirstCallInit',
-			'ScribuntoExternalLibraries',
-		] as $hook ) {
-			$this->attempt( "hook $hook constructs", static function () use ( $container, $hook ) {
-				$handlers = $container->getHandlers( $hook );
-				if ( !$handlers ) {
-					throw new \RuntimeException( 'no handlers registered' );
+		foreach ( $manifest['HookHandlers'] ?? [] as $name => $spec ) {
+			$class = $spec['class'] ?? '';
+
+			$this->attempt( "handler $name ($class) loads", static function () use ( $class ) {
+				// class_exists() runs the autoloader, so an interface that
+				// cannot be resolved surfaces here rather than in production.
+				if ( !class_exists( $class ) ) {
+					throw new \RuntimeException( 'class could not be loaded' );
 				}
 			} );
 		}
@@ -87,15 +87,28 @@ class SelfCheck extends Maintenance {
 		}
 	}
 
+	/**
+	 * Searching for something held locally proves nothing — MediaWiki finds
+	 * its own pages unaided. The index is only reaching search if a title
+	 * that exists upstream and *not* here comes back.
+	 */
 	private function checkSearch(): void {
-		$this->attempt( 'search returns index titles', static function () {
+		$this->attempt( 'search reaches the title index', static function () {
 			$engine = MediaWikiServices::getInstance()->getSearchEngineFactory()->create();
-			$engine->setLimitOffset( 5 );
-			$suggestions = $engine->completionSearch( 'Barack Ob' );
+			$engine->setLimitOffset( 20 );
+			$suggestions = $engine->completionSearch( 'Barack Obama' );
 
-			if ( !count( $suggestions->getSuggestions() ) ) {
+			$fromIndex = 0;
+			foreach ( $suggestions->getSuggestions() as $suggestion ) {
+				$title = $suggestion->getSuggestedTitle();
+				if ( $title && !$title->exists() ) {
+					$fromIndex++;
+				}
+			}
+
+			if ( !$fromIndex ) {
 				throw new \RuntimeException(
-					'no suggestions — the title index is not reaching search'
+					'only locally held pages came back; the index is not reaching search'
 				);
 			}
 		} );

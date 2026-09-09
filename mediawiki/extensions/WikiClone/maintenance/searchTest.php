@@ -56,6 +56,19 @@ class SearchTest extends Maintenance {
 		}
 
 		$this->output( "$count suggestions.\n" );
+
+		// Query the index directly too. If this returns rows and the search
+		// above did not, the fault is in the hook rather than in the data.
+		$prefix = ucfirst( str_replace( ' ', '_', trim( $term ) ) );
+		$direct = MediaWikiServices::getInstance()
+			->getService( 'WikiClone.TitleIndex' )
+			->prefixSearch( [ NS_MAIN ], $prefix, $limit );
+
+		$this->output( "\ntitle index directly, prefix \"$prefix\": "
+			. count( $direct ) . " rows\n" );
+		foreach ( array_slice( $direct, 0, 5 ) as [ $ns, $dbKey ] ) {
+			$this->output( "  $dbKey\n" );
+		}
 	}
 }
 
