@@ -78,6 +78,7 @@ class ArticleImporter {
 
 			if ( $dependencies ) {
 				$pages = $this->api->getWikitext( $dependencies );
+				$this->markHiddenCategories( $pages );
 				$stats['api'] += microtime( true ) - $mark;
 
 				$mark = microtime( true );
@@ -139,6 +140,52 @@ class ArticleImporter {
 		}
 
 		return $missing;
+	}
+
+	/**
+	 * Wikipedia hides its maintenance categories — "Articles with short
+	 * description", the CS1 ones — and readers never see them at the foot of an
+	 * article. The flag lives on the category page as __HIDDENCAT__, but
+	 * upstream almost never writes the magic word directly: the page reads
+	 * {{Wikipedia category|hidden=yes}} and the template emits it.
+	 *
+	 * Importing that template, and the tree behind it, for every category an
+	 * article belongs to would add a round of fetching to a page view that is
+	 * already the slowest thing here, and buys nothing a reader can see. So we
+	 * state the flag the template would have produced. The rendered category
+	 * page is unaffected; the categories simply stop showing, as upstream.
+	 *
+	 * @param array<string,array{text:string,revid:int}> &$pages
+	 */
+	private function markHiddenCategories( array &$pages ): void {
+		$categories = [];
+		foreach ( array_keys( $pages ) as $prefixedTitle ) {
+			$title = $this->titleFactory->newFromText( $prefixedTitle );
+			if ( $title && $title->getNamespace() === NS_CATEGORY ) {
+				$categories[] = $prefixedTitle;
+			}
+		}
+
+		if ( !$categories ) {
+			return;
+		}
+
+		foreach ( $this->api->getHiddenCategories( $categories ) as $prefixedTitle ) {
+			if ( isset( $pages[$prefixedTitle] ) ) {
+				$pages[$prefixedTitle]['text'] = self::withHiddenMarker( $pages[$prefixedTitle]['text'] );
+			}
+		}
+	}
+
+	/**
+	 * @return string $text with __HIDDENCAT__ on it, unchanged if it is already there
+	 */
+	public static function withHiddenMarker( string $text ): string {
+		if ( str_contains( $text, '__HIDDENCAT__' ) ) {
+			return $text;
+		}
+
+		return rtrim( $text, "\n" ) . "\n__HIDDENCAT__\n";
 	}
 
 	/**
@@ -231,11 +278,60 @@ class ArticleImporter {
 	}
 
 	/**
+	 * Put __HIDDENCAT__ on a category page we already hold.
+	 *
+	 * The repair path for categories imported before we knew to ask: see
+	 * markHiddenCategories() for why the flag is stated rather than rendered.
+	 *
+	 * @return bool whether the page needed changing
+	 */
+	public function markHidden( Title $title ): bool {
+		$page = $this->wikiPageFactory->newFromTitle( $title );
+		$content = $page->getContent();
+		if ( !$content ) {
+			return false;
+		}
+
+		$text = $content->serialize();
+		$marked = self::withHiddenMarker( $text );
+		if ( $marked === $text ) {
+			return false;
+		}
+
+		$handler = $this->contentHandlerFactory->getContentHandler( $title->getContentModel() );
+		$updater = $page->newPageUpdater( $this->getImportUser() );
+		$updater->setContent( SlotRecord::MAIN, $handler->unserializeContent( $marked ) );
+		$updater->saveRevision(
+			CommentStoreComment::newUnsavedComment( 'Hidden upstream, so hidden here' ),
+			EDIT_UPDATE | EDIT_FORCE_BOT | EDIT_SUPPRESS_RC
+		);
+
+		$saveStatus = $updater->getStatus();
+		if ( !$saveStatus || !$saveStatus->isOK() ) {
+			wfLogWarning( 'WikiClone could not mark ' . $title->getPrefixedText() . ' hidden: ' . (
+				$saveStatus ? $saveStatus->getWikiText( false, false, 'en' ) : 'no status'
+			) );
+			return false;
+		}
+
+		return true;
+	}
+
+	/**
 	 * Replace a page's content with the current upstream revision. Used by
 	 * sync, where the page already exists and we are moving it forward.
 	 */
 	public function refresh( Title $title, string $text, int $remoteRevId, int $kind ): void {
 		$user = $this->getImportUser();
+
+		// A sync replaces the page with upstream's text, which would drop the
+		// hidden flag we stated at import time. Ask again rather than assume:
+		// upstream is free to have unhidden the category since.
+		if ( $title->getNamespace() === NS_CATEGORY
+			&& $this->api->getHiddenCategories( [ $title->getPrefixedText() ] )
+		) {
+			$text = self::withHiddenMarker( $text );
+		}
 
 		$handler = $this->contentHandlerFactory->getContentHandler( $title->getContentModel() );
 		$updater = $this->wikiPageFactory->newFromTitle( $title )->newPageUpdater( $user );

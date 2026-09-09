@@ -72,6 +72,39 @@ class WikipediaApi {
 	}
 
 	/**
+	 * Which of these categories upstream treats as hidden.
+	 *
+	 * Wikipedia sets the flag with __HIDDENCAT__, but almost never writes the
+	 * magic word itself: the category page says {{Wikipedia category|hidden=yes}}
+	 * and the template emits it. Reading the resulting page property is
+	 * therefore the only way to learn the answer without importing a template
+	 * tree for every category page we touch.
+	 *
+	 * @param string[] $prefixedTitles
+	 * @return string[] the subset that is hidden, as the API spells them
+	 */
+	public function getHiddenCategories( array $prefixedTitles ): array {
+		$hidden = [];
+
+		foreach ( array_chunk( $prefixedTitles, self::TITLES_PER_REQUEST ) as $chunk ) {
+			$data = $this->request( [
+				'action' => 'query',
+				'titles' => implode( '|', $chunk ),
+				'prop' => 'pageprops',
+				'ppprop' => 'hiddencat',
+			] );
+
+			foreach ( $data['query']['pages'] ?? [] as $page ) {
+				if ( isset( $page['title'], $page['pageprops']['hiddencat'] ) ) {
+					$hidden[] = $page['title'];
+				}
+			}
+		}
+
+		return $hidden;
+	}
+
+	/**
 	 * Fetch wikitext for up to any number of titles, batched.
 	 *
 	 * @param string[] $prefixedTitles
