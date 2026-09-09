@@ -46,6 +46,7 @@ return [
 			$services->getService( 'WikiClone.PageStateStore' ),
 			$services->getContentHandlerFactory(),
 			$services->getLinkBatchFactory(),
+			$services->getService( 'WikiClone.TitleIndex' ),
 			$services->getMainConfig()->get( 'WikiCloneMaxDependencies' )
 		);
 	},

@@ -33,6 +33,7 @@ class ArticleImporter {
 	private PageStateStore $pageState;
 	private IContentHandlerFactory $contentHandlerFactory;
 	private LinkBatchFactory $linkBatchFactory;
+	private TitleIndex $titleIndex;
 	private int $maxDependencies;
 
 	public function __construct(
@@ -42,6 +43,7 @@ class ArticleImporter {
 		PageStateStore $pageState,
 		IContentHandlerFactory $contentHandlerFactory,
 		LinkBatchFactory $linkBatchFactory,
+		TitleIndex $titleIndex,
 		int $maxDependencies
 	) {
 		$this->api = $api;
@@ -50,6 +52,7 @@ class ArticleImporter {
 		$this->pageState = $pageState;
 		$this->contentHandlerFactory = $contentHandlerFactory;
 		$this->linkBatchFactory = $linkBatchFactory;
+		$this->titleIndex = $titleIndex;
 		$this->maxDependencies = $maxDependencies;
 	}
 
@@ -109,8 +112,12 @@ class ArticleImporter {
 	 * @return string[] prefixed titles this wiki does not hold yet
 	 */
 	private function missingDependencies( string $prefixedTitle ): array {
+		$linkedTitles = null;
+		$dependencies = $this->api->getDependencies( $prefixedTitle, $linkedTitles );
+		$this->rememberLinks( $linkedTitles ?? [] );
+
 		$candidates = [];
-		foreach ( $this->api->getDependencies( $prefixedTitle ) as $candidate ) {
+		foreach ( $dependencies as $candidate ) {
 			$title = $this->titleFactory->newFromText( $candidate );
 			if ( $title ) {
 				$candidates[] = $title;
@@ -140,6 +147,32 @@ class ArticleImporter {
 		}
 
 		return $missing;
+	}
+
+	/**
+	 * Add the titles upstream says exist to the index, so links to them are
+	 * blue.
+	 *
+	 * The index is a snapshot of a dump: an article written since it was taken
+	 * is not in it, and renders red here while being perfectly blue on
+	 * Wikipedia. Waiting for the monthly reload to fix that means a month of
+	 * links that look broken, and this answer arrives free with a call the
+	 * import is already making.
+	 *
+	 * @param string[] $prefixedTitles
+	 */
+	private function rememberLinks( array $prefixedTitles ): void {
+		$rows = [];
+		foreach ( $prefixedTitles as $prefixedTitle ) {
+			$title = $this->titleFactory->newFromText( $prefixedTitle );
+			if ( $title && $title->canExist() ) {
+				$rows[] = [ $title->getNamespace(), $title->getDBkey() ];
+			}
+		}
+
+		if ( $rows ) {
+			$this->titleIndex->remember( $rows );
+		}
 	}
 
 	/**

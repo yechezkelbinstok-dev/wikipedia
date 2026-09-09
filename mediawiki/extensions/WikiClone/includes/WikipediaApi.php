@@ -46,16 +46,30 @@ class WikipediaApi {
 	 * maintenance categories are meant to be invisible, and prints the lot at
 	 * the foot of every article.
 	 *
+	 * @param string[]|null &$linkedTitles filled with the prefixed titles this
+	 *        page links to that exist upstream
 	 * @return string[] prefixed titles, e.g. "Template:Infobox",
 	 *         "Module:Citation/CS1", "Category:Use British English"
 	 */
-	public function getDependencies( string $prefixedTitle ): array {
+	public function getDependencies( string $prefixedTitle, ?array &$linkedTitles = null ): array {
 		$data = $this->request( [
 			'action' => 'parse',
 			'page' => $prefixedTitle,
-			'prop' => 'templates|categories',
+			'prop' => 'templates|categories|links',
 			'redirects' => 1,
 		] );
+
+		// Links are not fetched — an article's links are most of Wikipedia —
+		// but which of them upstream says exist is worth keeping. The title
+		// index is a dump snapshot, so an article written since it was taken
+		// renders as a red link here while being perfectly blue on Wikipedia,
+		// and this is that answer arriving free with a call already being made.
+		$linkedTitles = [];
+		foreach ( $data['parse']['links'] ?? [] as $link ) {
+			if ( isset( $link['title'], $link['exists'] ) ) {
+				$linkedTitles[] = $link['title'];
+			}
+		}
 
 		$titles = [];
 
