@@ -2,7 +2,7 @@
 
 namespace MediaWiki\Extension\WikiClone;
 
-use MediaWiki\Hook\SearchGetNearMatchHook;
+use MediaWiki\Search\Hook\SearchGetNearMatchHook;
 use MediaWiki\Search\Hook\PrefixSearchBackendHook;
 use MediaWiki\Title\Title;
 use MediaWiki\Title\TitleFactory;

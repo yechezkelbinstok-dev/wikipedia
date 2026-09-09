@@ -307,3 +307,16 @@ permission check in the way:
 ```bash
 docker compose exec mediawiki php extensions/WikiClone/maintenance/searchTest.php "Barack Ob"
 ```
+
+## Self-check
+
+```bash
+docker compose exec mediawiki php extensions/WikiClone/maintenance/selfCheck.php
+```
+
+Run automatically by `deploy.sh`. A hook handler naming an interface that does
+not exist passes a syntax check, registers without complaint, and throws only
+when something tries to construct it — search was broken that way from the day
+it was written, because the class could not load, so neither of its hooks ever
+ran while the rest of the wiki carried on looking healthy. Every check here is
+something that has actually broken.

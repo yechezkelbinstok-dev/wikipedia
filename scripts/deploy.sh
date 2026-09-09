@@ -30,6 +30,9 @@ docker compose restart mediawiki
 echo "==> Applying schema changes"
 docker compose exec -T mediawiki php maintenance/run.php update --quick
 
+echo "==> Extension self-check"
+docker compose exec -T mediawiki php extensions/WikiClone/maintenance/selfCheck.php
+
 echo "==> Health check"
 domain=$(grep '^WIKI_DOMAIN=' .env | cut -d= -f2-)
 for attempt in $(seq 1 10); do
