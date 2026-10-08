@@ -28,6 +28,64 @@ function wikibase.getEntityIdForTitle()
 	return nil
 end
 
+--- The methods modules call on an entity. Kept on a metatable rather than
+--- copied onto each entity, so pairs() over one still sees only its data.
+local entityMethods = {}
+entityMethods.__index = entityMethods
+
+function entityMethods:getId()
+	return self.id
+end
+
+function entityMethods:getLabel( lang )
+	return ( php.getLabel( self.id, lang or 'en' ) )
+end
+
+function entityMethods:getLabelWithLang( lang )
+	return php.getLabel( self.id, lang or 'en' )
+end
+
+function entityMethods:getDescription( lang )
+	return ( php.getDescription( self.id, lang or 'en' ) )
+end
+
+function entityMethods:getDescriptionWithLang( lang )
+	return php.getDescription( self.id, lang or 'en' )
+end
+
+function entityMethods:getSitelink( site )
+	return php.getSitelink( self.id, site )
+end
+
+function entityMethods:getBestStatements( property )
+	return php.getBestStatements( self.id, property )
+end
+
+function entityMethods:getAllStatements( property )
+	return php.getAllStatements( self.id, property )
+end
+
+--- Formatted values for a property, with the property's own label.
+--- Modules use this rather than walking statements themselves.
+function entityMethods:formatPropertyValues( property )
+	return php.formatPropertyValues( self.id, property )
+end
+
+function entityMethods:formatStatements( property )
+	return php.formatPropertyValues( self.id, property )
+end
+
+function entityMethods:getProperties()
+	local properties = {}
+	for property in pairs( self.claims or {} ) do
+		properties[#properties + 1] = property
+	end
+	return properties
+end
+
+--- getEntity and getEntityObject are the same function in the real client:
+--- both return the object form. Modules such as Taxonbar call methods on what
+--- getEntity returns, so a bare table fails them with "attempt to call method".
 function wikibase.getEntity( id )
 	if id == nil then
 		id = php.getEntityIdForCurrentPage()
@@ -35,56 +93,15 @@ function wikibase.getEntity( id )
 	if id == nil then
 		return nil
 	end
-	return php.getEntity( id )
-end
 
---- The object form, with the methods modules call on it.
-function wikibase.getEntityObject( id )
-	local entity = wikibase.getEntity( id )
+	local entity = php.getEntity( id )
 	if entity == nil then
 		return nil
 	end
-
-	function entity:getLabel( lang )
-		return php.getLabel( self.id, lang or 'en' )
-	end
-
-	function entity:getDescription( lang )
-		return php.getDescription( self.id, lang or 'en' )
-	end
-
-	function entity:getSitelink( site )
-		return php.getSitelink( self.id, site )
-	end
-
-	function entity:getBestStatements( property )
-		return php.getBestStatements( self.id, property )
-	end
-
-	function entity:getAllStatements( property )
-		return php.getAllStatements( self.id, property )
-	end
-
-	--- Formatted values for a property, with the property's own label.
-	--- Modules use this rather than walking statements themselves.
-	function entity:formatPropertyValues( property )
-		return php.formatPropertyValues( self.id, property )
-	end
-
-	function entity:formatStatements( property )
-		return php.formatPropertyValues( self.id, property )
-	end
-
-	function entity:getProperties()
-		local properties = {}
-		for property in pairs( self.claims or {} ) do
-			properties[#properties + 1] = property
-		end
-		return properties
-	end
-
-	return entity
+	return setmetatable( entity, entityMethods )
 end
+
+wikibase.getEntityObject = wikibase.getEntity
 
 function wikibase.getLabel( id )
 	if id == nil then

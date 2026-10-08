@@ -95,6 +95,15 @@ Deleting an imported article costs nothing: the title stays in the index, so
 links to it are still blue and viewing it fetches it again. `--dependencies`
 also drops templates and modules that nothing transcludes any more.
 
+```bash
+docker compose exec mediawiki php extensions/WikiClone/maintenance/purgeScriptErrors.php
+```
+
+Rendered pages are cached for months, so a fix to a module or to
+`mw.wikibase` does not reach a page that already showed a red Lua error. This
+purges every page in Scribunto's "Pages with script errors" category, so each
+renders afresh on its next view, without throwing away the rest of the cache.
+
 ## What is never touched
 
 Both sync and purge skip any page whose newest revision was not written by the
